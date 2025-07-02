@@ -1,0 +1,12 @@
+[submodule "BEHAVIOR-1K"]
+	path = BEHAVIOR-1K
+	url = https://github.com/StanfordVL/BEHAVIOR-1K
+	branch = proj/momagen
+[submodule "mimicgen"]
+	path = mimicgen
+	url = https://github.com/ChengshuLi/mimicgen
+	branch = b1k-mimicgen
+[submodule "robomimic"]
+	path = robomimic
+	url = https://github.com/ChengshuLi/robomimic
+	branch = b1k-mimicgen
