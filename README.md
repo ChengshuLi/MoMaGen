@@ -1,6 +1,9 @@
 <h1 align="center">MomaGen</h1>
 <h3 align="center">Generating Demonstrations under Soft and Hard Constraints for Multi-Step Bimanual Mobile Manipulation</h3>
 
+![momagen_teaser](https://github.com/user-attachments/assets/278f7c1c-1d73-47c0-942c-e70115875eb4)
+
+
 ## 🛠️ Installation
 
 ### Clone the repository with submodules
