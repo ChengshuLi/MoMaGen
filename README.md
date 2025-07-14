@@ -29,7 +29,7 @@ cd robomimic && pip install -e . && cd ..
 
 ### Generate configs
 ```
-python mimicgen/scripts/generate_core_configs_og.py
+python mimicgen/mimicgen/scripts/generate_core_configs_og.py
 ```
 
 ### Copy scene instances
@@ -45,8 +45,8 @@ DR=0
 NUM_DEMOS=10
 WORKER_ID=0
 FOLDER=/path/to/data
-python mimicgen/scripts/generate_dataset.py \
-    --config datasets/generated_data_mimicgen_format/core_configs_og/demo_src_r1_$TASK\_task_D$DR.json \
+python mimicgen/mimicgen/scripts/generate_dataset.py \
+    --config mimicgen/datasets/generated_data_mimicgen_format/core_configs_og/demo_src_r1_$TASK\_task_D$DR.json \
     --num_demos $NUM_DEMOS \
     --bimanual \
     --folder $FOLDER/$TASK/r1_$TASK\_worker_$WORKER_ID \
