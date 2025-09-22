@@ -1,0 +1,223 @@
+{
+    "name": "test_r1_cup",
+    "type": "omnigibson_bimanual",
+    "experiment": {
+        "name": "demo",
+        "source": {
+            "dataset_path": null,
+            "filter_key": null,
+            "n": null,
+            "start": null
+        },
+        "generation": {
+            "path": null,
+            "guarantee": false,
+            "keep_failed": true,
+            "num_trials": 10,
+            "select_src_per_subtask": false,
+            "transform_first_robot_pose": false,
+            "interpolate_from_last_target_pose": true
+        },
+        "task": {
+            "name": null,
+            "robot": null,
+            "gripper": null,
+            "interface": null,
+            "interface_type": null
+        },
+        "max_num_failures": 50,
+        "render_video": true,
+        "num_demo_to_render": 50,
+        "num_fail_demo_to_render": 50,
+        "log_every_n_attempts": 50,
+        "seed": 1
+    },
+    "obs": {
+        "collect_obs": true,
+        "camera_names": [],
+        "camera_height": 84,
+        "camera_width": 84
+    },
+    "task": {
+        "task_spec": {
+            "phase_1":{
+                "type": "navigation",
+                "arm_left":{
+                    "subtask_1": {
+                        "arm": "left",
+                        "object_ref": "teacup",
+                        "attached_obj": null,
+                        "subtask_term_signal": null,
+                        "subtask_term_step": 1720,
+                        "MP_end_step": 1720,
+                        "subtask_term_offset_range": null,
+                        "selection_strategy": "random",
+                        "selection_strategy_kwargs": null,
+                        "action_noise": 0.0,
+                        "num_interpolation_steps": 50,
+                        "num_fixed_steps": 0,
+                        "apply_noise_during_interpolation": false
+                    }
+                },
+                "arm_right":{
+                    "subtask_1": {
+                        "arm": "right",
+                        "object_ref": "coffee_cup",
+                        "attached_obj": null,
+                        "subtask_term_signal": null,
+                        "subtask_term_step": 1720,
+                        "MP_end_step": 1720,
+                        "subtask_term_offset_range": null,
+                        "selection_strategy": "random",
+                        "selection_strategy_kwargs": null,
+                        "action_noise": 0.0,
+                        "num_interpolation_steps": 50,
+                        "num_fixed_steps": 0,
+                        "apply_noise_during_interpolation": false
+                    }
+                }
+            },
+            "phase_2":{
+                "type": "uncoordinated",
+                "arm_left":{
+                    "subtask_1": {
+                        "arm": "left",
+                        "object_ref": "teacup",
+                        "attached_obj": null,
+                        "subtask_term_signal": null,
+                        "subtask_term_step": 2770,
+                        "MP_end_step": 2770,
+                        "subtask_term_offset_range": null,
+                        "selection_strategy": "random",
+                        "selection_strategy_kwargs": null,
+                        "action_noise": 0.0,
+                        "num_interpolation_steps": 5,
+                        "num_fixed_steps": 0,
+                        "apply_noise_during_interpolation": false
+                    }
+                },
+                "arm_right":{
+                    "subtask_1": {
+                        "arm": "right",
+                        "object_ref": "coffee_cup",
+                        "attached_obj": null,
+                        "subtask_term_signal": null,
+                        "subtask_term_step": 2270,
+                        "MP_end_step": 2050,
+                        "subtask_term_offset_range": null,
+                        "selection_strategy": "random",
+                        "selection_strategy_kwargs": null,
+                        "action_noise": 0.0,
+                        "num_interpolation_steps": 5,
+                        "num_fixed_steps": 0,
+                        "apply_noise_during_interpolation": false
+                    },
+                    "subtask_2": {
+                        "arm": "right",
+                        "object_ref": "breakfast_table",
+                        "attached_obj": "coffee_cup",
+                        "subtask_term_signal": null,
+                        "subtask_term_step": 2770,
+                        "MP_end_step": 2570,
+                        "subtask_term_offset_range": null,
+                        "selection_strategy": "random",
+                        "selection_strategy_kwargs": null,
+                        "action_noise": 0.0,
+                        "num_interpolation_steps": 5,
+                        "num_fixed_steps": 0,
+                        "apply_noise_during_interpolation": false
+                    }
+                }
+            },
+            "phase_3":{
+                "type": "uncoordinated",
+                "arm_left":{
+                    "subtask_1": {
+                        "arm": "left",
+                        "object_ref": "teacup",
+                        "attached_obj": null,
+                        "subtask_term_signal": null,
+                        "subtask_term_step": 3440,
+                        "MP_end_step": 3200,
+                        "subtask_term_offset_range": null,
+                        "selection_strategy": "random",
+                        "selection_strategy_kwargs": null,
+                        "action_noise": 0.0,
+                        "num_interpolation_steps": 50,
+                        "num_fixed_steps": 0,
+                        "apply_noise_during_interpolation": false
+                    },
+                    "subtask_2": {
+                        "arm": "left",
+                        "object_ref": "coffee_cup",
+                        "attached_obj": "teacup",
+                        "subtask_term_signal": null,
+                        "subtask_term_step": 3960,
+                        "MP_end_step": 3860,
+                        "subtask_term_offset_range": null,
+                        "selection_strategy": "random",
+                        "selection_strategy_kwargs": null,
+                        "action_noise": 0.0,
+                        "num_interpolation_steps": 50,
+                        "num_fixed_steps": 0,
+                        "apply_noise_during_interpolation": false
+                    }
+                },
+                "arm_right":{
+                    "subtask_1": {
+                        "arm": "right",
+                        "object_ref": "coffee_cup",
+                        "attached_obj": null,
+                        "subtask_term_signal": null,
+                        "subtask_term_step": 3960,
+                        "MP_end_step": 3960,
+                        "subtask_term_offset_range": null,
+                        "selection_strategy": "random",
+                        "selection_strategy_kwargs": null,
+                        "action_noise": 0.0,
+                        "num_interpolation_steps": 50,
+                        "num_fixed_steps": 0,
+                        "apply_noise_during_interpolation": false
+                    }
+                }
+            },
+            "phase_4":{
+                "type": "navigation",
+                "arm_left":{
+                    "subtask_1": {
+                        "arm": "left",
+                        "object_ref": "breakfast_table",
+                        "attached_obj": null,
+                        "subtask_term_signal": null,
+                        "subtask_term_step": null,
+                        "MP_end_step": null,
+                        "subtask_term_offset_range": null,
+                        "selection_strategy": "random",
+                        "selection_strategy_kwargs": null,
+                        "action_noise": 0.0,
+                        "num_interpolation_steps": 50,
+                        "num_fixed_steps": 0,
+                        "apply_noise_during_interpolation": false
+                    }
+                },
+                "arm_right":{
+                    "subtask_1": {
+                        "arm": "right",
+                        "object_ref": "breakfast_table",
+                        "attached_obj": null,
+                        "subtask_term_signal": null,
+                        "subtask_term_step": null,
+                        "MP_end_step": null,
+                        "subtask_term_offset_range": null,
+                        "selection_strategy": "random",
+                        "selection_strategy_kwargs": null,
+                        "action_noise": 0.0,
+                        "num_interpolation_steps": 50,
+                        "num_fixed_steps": 0,
+                        "apply_noise_during_interpolation": false
+                    }
+                }
+            }
+        }
+    }
+}

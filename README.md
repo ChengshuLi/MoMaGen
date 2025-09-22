@@ -21,7 +21,6 @@ conda activate momagen
 ```
 cd MoMaGen && pip install -e .
 cd BEHAVIOR-1K && . ./setup.sh --omnigibson --bddl --teleop --dataset --primitives && cd ..
-cd mimicgen && pip install -e . && cd ..
 cd robomimic && pip install -e . && cd ..
 ```
 
@@ -29,7 +28,7 @@ cd robomimic && pip install -e . && cd ..
 
 ### Generate configs
 ```
-python mimicgen/mimicgen/scripts/generate_core_configs_og.py
+python momagen/scripts/generate_configs.py
 ```
 
 ### Copy scene instances
@@ -45,8 +44,8 @@ DR=0
 NUM_DEMOS=10
 WORKER_ID=0
 FOLDER=/path/to/data
-python mimicgen/mimicgen/scripts/generate_dataset.py \
-    --config mimicgen/datasets/generated_data_mimicgen_format/core_configs_og/demo_src_r1_$TASK\_task_D$DR.json \
+python momagen/scripts/generate_dataset.py \
+    --config momagen/datasets/configs/demo_src_r1_$TASK\_task_D$DR.json \
     --num_demos $NUM_DEMOS \
     --bimanual \
     --folder $FOLDER/$TASK/r1_$TASK\_worker_$WORKER_ID \

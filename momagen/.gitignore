@@ -1,0 +1,38 @@
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Generated config files (from generate_configs.py)
+datasets/configs/
+datasets/generated_datasets/
+
+# Temporary experiment folders
+/tmp/
+exp_*/
+demo_*/
+
+# Log files
+*.log
+logs/
+
+# Video files
+*.mp4
+*.avi
+*.mov
+
+# Model checkpoints
+*.pth
+*.pt
+*.ckpt
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
