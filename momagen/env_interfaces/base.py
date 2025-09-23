@@ -1,7 +1,5 @@
 """
-Base class for environment interfaces used by MimicGen. Defines a set of
-functions that should be implemented for every set of environments, and
-a global registry.
+Base class for environment interfaces.
 """
 import abc # for abstract base class definitions
 import six # preserve metaclass compatibility between python 2 and 3

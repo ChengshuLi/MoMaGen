@@ -1,13 +1,11 @@
 """
 Base class for data generator.
 """
-import h5py
 import numpy as np
 import torch as th
 
 import momagen.utils.pose_utils as PoseUtils
 import momagen.utils.file_utils as MG_FileUtils
-from momagen.utils.robot_config import get_torso_link_name
 
 from momagen.configs.task_spec import MG_TaskSpec
 from momagen.datagen.datagen_info import DatagenInfo
@@ -340,7 +338,6 @@ class DataGenerator(object):
         attached_object_names = {}
         for local_arm_side in ["left", "right"]:  
             is_grasping = robot.is_grasping(arm=local_arm_side)
-            # print("local_arm_side is_grasping: ", local_arm_side, is_grasping)
             if is_grasping == og.controllers.IsGraspingState.TRUE: 
                 # Find the object that the robot is grapsing in that arm
                 task_relevant_objs = env._get_task_relevant_objs()
@@ -348,7 +345,6 @@ class DataGenerator(object):
                     # TODO: remove the stationay object hardcoding. Make it more general
                     if all(keyword not in task_relevant_obj.name for keyword in ["table", "shelf", "bar", "sink"]):
                         is_grasping_candidate_obj = robot.is_grasping(arm=local_arm_side, candidate_obj=task_relevant_obj)
-                        # print("local_arm_side is_grasping_candidate_obj: ", local_arm_side, is_grasping_candidate_obj, task_relevant_obj.root_link.name) 
                         if is_grasping_candidate_obj == og.controllers.IsGraspingState.TRUE:
                             print(f"arm {local_arm_side} is_grasping {task_relevant_obj.root_link.name}") 
                             attached_obj_new[f"{local_arm_side}_eef_link"] = task_relevant_obj.root_link

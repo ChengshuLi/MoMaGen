@@ -1,34 +1,69 @@
 """
 A collection of utilities for working with poses.
+
+This module provides custom pose utilities specific to MoMaGen.
+Most basic transform operations are delegated to BEHAVIOR-1K's transform_utils_np.py.
 """
 
 import math
-import collections
 import numpy as np
 
-# import robosuite
-# import robosuite.utils.transform_utils as T
 import omnigibson.utils.transform_utils as T
+from omnigibson.utils.transform_utils_np import (
+    make_pose,
+    quat2axisangle, axisangle2quat, quat_slerp
+)
+from omnigibson.utils.transform_utils_np import pose_inv as _pose_inv
 
 
-def make_pose(pos, rot):
+def pose_inv(pose):
     """
-    Make homogenous pose matrices from a set of translation vectors and rotation matrices.
+    Computes the inverse of homogenous pose matrices.
+
+    This wrapper handles both single poses and batched poses, delegating to BEHAVIOR-1K's
+    optimized implementation while maintaining compatibility with momagen's usage patterns.
 
     Args:
-        pos (np.array): batch of position vectors with last dimension of 3
-        rot (np.array): batch of rotation matrices with last 2 dimensions of (3, 3)
+        pose (np.array): pose matrix (4, 4) or batch of pose matrices (..., 4, 4)
 
     Returns:
-        pose (np.array): batch of pose matrices with last 2 dimensions of (4, 4)
+        inv_pose (np.array): inverse pose matrix(es) with same shape as input
     """
-    assert pos.shape[:-1] == rot.shape[:-2]
-    assert pos.shape[-1] == rot.shape[-2] == rot.shape[-1] == 3
-    pose = np.zeros(pos.shape[:-1] + (4, 4))
-    pose[..., :3, :3] = rot
-    pose[..., :3, 3] = pos
-    pose[..., 3, 3] = 1.
-    return pose
+    original_shape = pose.shape
+
+    if len(original_shape) == 2:
+        # Single 4x4 matrix
+        return _pose_inv(pose)
+    else:
+        # Batched matrices - handle each one individually
+        if len(original_shape) == 3 and original_shape[0] == 1:
+            # Shape (1, 4, 4) - squeeze, compute, unsqueeze
+            return _pose_inv(pose[0])[None]
+        else:
+            # General batched case - flatten, compute each, reshape
+            pose_flat = pose.reshape(-1, 4, 4)
+            inv_poses = np.array([_pose_inv(p) for p in pose_flat])
+            return inv_poses.reshape(original_shape)
+
+
+def pose_in_A_to_pose_in_B(pose_in_A, pose_A_in_B):
+    """
+    Converts homogenous matrices corresponding to a point C in frame A
+    to homogenous matrices corresponding to the same point C in frame B.
+
+    This wrapper maintains momagen's keyword argument interface and handles
+    batched matrix multiplication with proper broadcasting.
+
+    Args:
+        pose_in_A (np.array): batch of homogenous matrices corresponding to the pose of C in frame A
+        pose_A_in_B (np.array): batch of homogenous matrices corresponding to the pose of A in frame B
+
+    Returns:
+        pose_in_B (np.array): batch of homogenous matrices corresponding to the pose of C in frame B
+    """
+    # Use np.matmul for proper broadcasting of batched matrices
+    # This handles cases like (1, 4, 4) @ (T, 4, 4) -> (T, 4, 4)
+    return np.matmul(pose_A_in_B, pose_in_A)
 
 
 def unmake_pose(pose):
@@ -45,122 +80,36 @@ def unmake_pose(pose):
     return pose[..., :3, 3], pose[..., :3, :3]
 
 
-def pose_inv(pose):
-    """
-    Computes the inverse of homogenous pose matrices.
-
-    Note that the inverse of a pose matrix is the following:
-    [R t; 0 1]^-1 = [R.T -R.T*t; 0 1]
-
-    Args:
-        pose (np.array): batch of pose matrices with last 2 dimensions of (4, 4)
-
-
-    Returns:
-        inv_pose (np.array): batch of inverse pose matrices with last 2 dimensions of (4, 4)
-    """
-    num_axes = len(pose.shape)
-    assert num_axes >= 2
-
-    inv_pose = np.zeros_like(pose)
-
-    # gymnastics to take transpose of last 2 dimensions
-    inv_pose[..., :3, :3] = np.transpose(pose[..., :3, :3], tuple(range(num_axes - 2)) + (num_axes - 1, num_axes - 2))
-
-    # note: numpy matmul wants shapes [..., 3, 3] x [..., 3, 1] -> [..., 3, 1] so we add a dimension and take it away after
-    inv_pose[..., :3, 3] = np.matmul(-inv_pose[..., :3, :3], pose[..., :3, 3:4])[..., 0]
-    inv_pose[..., 3, 3] = 1.0
-    return inv_pose
-
-
-def pose_in_A_to_pose_in_B(pose_in_A, pose_A_in_B):
-    """
-    Converts homogenous matrices corresponding to a point C in frame A
-    to homogenous matrices corresponding to the same point C in frame B.
-
-    Args:
-        pose_in_A (np.array): batch of homogenous matrices corresponding to the pose of C in frame A
-        pose_A_in_B (np.array): batch of homogenous matrices corresponding to the pose of A in frame B
-
-    Returns:
-        pose_in_B (np.array): batch of homogenous matrices corresponding to the pose of C in frame B
-    """
-    return np.matmul(pose_A_in_B, pose_in_A)
-
-
-def quat2axisangle(quat):
+def quat2axisangle_separate(quat):
     """
     Converts (x, y, z, w) quaternion to axis-angle format.
-    Returns a unit vector direction and an angle.
+    Returns a unit vector direction and an angle separately.
 
-    NOTE: this differs from robosuite's function because it returns
-          both axis and angle, not axis * angle.
+    NOTE: This is a wrapper around BEHAVIOR's quat2axisangle that maintains
+          the original momagen interface (returning axis and angle separately).
     """
-
-    # conversion from axis-angle to quaternion:
-    #   qw = cos(theta / 2); qx, qy, qz = u * sin(theta / 2)
-
-    # normalize qx, qy, qz by sqrt(qx^2 + qy^2 + qz^2) = sqrt(1 - qw^2)
-    # to extract the unit vector
-
-    # clipping for scalar with if-else is orders of magnitude faster than numpy
-    if quat[3] > 1.:
-        quat[3] = 1.
-    elif quat[3] < -1.:
-        quat[3] = -1.
-
-    den = np.sqrt(1. - quat[3] * quat[3])
-    if math.isclose(den, 0.):
-        # This is (close to) a zero degree rotation, immediately return
-        return np.zeros(3), 0.
-
-    return quat[:3] / den, 2. * math.acos(quat[3])
+    axis_angle = quat2axisangle(quat)
+    angle = np.linalg.norm(axis_angle)
+    if angle < 1e-6:
+        return np.zeros(3), 0.0
+    axis = axis_angle / angle
+    return axis, angle
 
 
-def axisangle2quat(axis, angle):
+def axisangle2quat_separate(axis, angle):
     """
     Converts axis-angle to (x, y, z, w) quat.
 
-    NOTE: this differs from robosuite's function because it accepts
-          both axis and angle as arguments, not axis * angle.
+    NOTE: This is a wrapper around BEHAVIOR's axisangle2quat that maintains
+          the original momagen interface (accepting axis and angle separately).
     """
-
-    # handle zero-rotation case
     if math.isclose(angle, 0.):
         return np.array([0., 0., 0., 1.])
 
-    # make sure that axis is a unit vector
-    assert math.isclose(np.linalg.norm(axis), 1., abs_tol=1e-3)
-
-    q = np.zeros(4)
-    q[3] = np.cos(angle / 2.)
-    q[:3] = axis * np.sin(angle / 2.)
-    return q
-
-
-def quat_slerp(q1, q2, tau):
-    """
-    Adapted from robosuite.
-    """
-    if tau == 0.0:
-        return q1
-    elif tau == 1.0:
-        return q2
-    d = np.dot(q1, q2)
-    if abs(abs(d) - 1.0) < np.finfo(float).eps * 4.:
-        return q1
-    if d < 0.0:
-        # invert rotation
-        d = -d
-        q2 *= -1.0
-    angle = math.acos(np.clip(d, -1, 1))
-    if abs(angle) < np.finfo(float).eps * 4.:
-        return q1
-    isin = 1.0 / math.sin(angle)
-    q1 = q1 * math.sin((1.0 - tau) * angle) * isin
-    q2 = q2 * math.sin(tau * angle) * isin
-    q1 = q1 + q2
-    return q1
+    # Ensure axis is normalized
+    axis_normalized = axis / np.linalg.norm(axis)
+    axis_angle = axis_normalized * angle
+    return axisangle2quat(axis_angle)
 
 
 def interpolate_rotations(R1, R2, num_steps, axis_angle=True):
@@ -174,7 +123,7 @@ def interpolate_rotations(R1, R2, num_steps, axis_angle=True):
         # delta rotation expressed as axis-angle
         delta_rot_mat = R2.dot(R1.T)
         delta_quat = T.mat2quat(delta_rot_mat)
-        delta_axis, delta_angle = quat2axisangle(delta_quat)
+        delta_axis, delta_angle = quat2axisangle_separate(delta_quat)
 
         # fix the axis, and chunk the angle up into steps
         rot_step_size = delta_angle / num_steps
@@ -184,7 +133,7 @@ def interpolate_rotations(R1, R2, num_steps, axis_angle=True):
             # small angle - don't bother with interpolation
             rot_steps = np.array([R2 for _ in range(num_steps)])
         else:
-            delta_rot_steps = [T.quat2mat(axisangle2quat(delta_axis, i * rot_step_size)) for i in range(num_steps)]
+            delta_rot_steps = [T.quat2mat(axisangle2quat_separate(delta_axis, i * rot_step_size)) for i in range(num_steps)]
             rot_steps = np.array([delta_rot_steps[i].dot(R1) for i in range(num_steps)])
     else:
         q1 = T.mat2quat(R1)

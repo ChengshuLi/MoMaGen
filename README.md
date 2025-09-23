@@ -38,12 +38,17 @@ cp momagen/scene_instances/house_single_floor/* BEHAVIOR-1K/OmniGibson/omnigibso
 ```
 
 ### Generate data
-```
-TASK=pick_cup
+
+**Available tasks**: `pick_cup`, `tidy_table`, `dishes_away`, `clean_pan`
+
+```bash
+# Set the task name (choose from available tasks above)
+TASK=pick_cup  # Options: pick_cup, tidy_table, dishes_away, clean_pan
 DR=0
 NUM_DEMOS=10
 WORKER_ID=0
 FOLDER=/path/to/data
+
 python momagen/scripts/generate_dataset.py \
     --config momagen/datasets/configs/demo_src_r1_$TASK\_task_D$DR.json \
     --num_demos $NUM_DEMOS \

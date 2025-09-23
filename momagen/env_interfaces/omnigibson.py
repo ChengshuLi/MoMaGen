@@ -1,20 +1,30 @@
 """
 MoMaGen environment interface classes for OmniGibson environments.
+Refactored to use configuration-driven tasks instead of hardcoded classes.
 """
 import numpy as np
+from typing import Dict, Any
+from dataclasses import dataclass, field
+import cvxpy as cp
+import torch as th
 
 import omnigibson as og
 import omnigibson.utils.transform_utils as T
 from omnigibson.object_states import *
 from omnigibson.controllers import ControlType
-import cvxpy as cp
 
 from momagen.env_interfaces.base import MG_EnvInterface
 from momagen.datagen.datagen_info import DatagenInfo
 
-import torch as th
-from omnigibson.robots.r1 import R1
-from omnigibson.robots.tiago import Tiago
+
+@dataclass
+class TaskConfig:
+    """Configuration for a task, defining objects and termination signals."""
+    name: str
+    tracked_objects: Dict[str, str] = field(default_factory=dict)  # logical_name -> registry_name
+    termination_signals: Dict[str, Dict[str, Any]] = field(default_factory=dict)  # signal_name -> config
+    robot_specific_objects: Dict[str, Dict[str, str]] = field(default_factory=dict)  # robot_type -> object_mapping
+    bimanual: bool = True  # Whether this task uses bimanual interface
 
 
 class OmniGibsonInterface(MG_EnvInterface):
@@ -25,8 +35,10 @@ class OmniGibsonInterface(MG_EnvInterface):
     # Note: base simulator interface class must fill out interface type as a class property
     INTERFACE_TYPE = "omnigibson"
 
-    def __init__(self, env):
+    def __init__(self, env, task_config: TaskConfig = None):
         super(OmniGibsonInterface, self).__init__(env)
+        self.task_config = task_config
+        self.robot = env.robots[0]
         self._setup_arm_controller()
 
     def _setup_arm_controller(self):
@@ -34,7 +46,6 @@ class OmniGibsonInterface(MG_EnvInterface):
         Sets up the arm controller for the robot. This is necessary to know where the arm command
         starts and ends in the action vector.
         """
-        self.robot = self.env.robots[0]
         start_idx = 0
         end_idx = None
         arm_controller = None
@@ -56,6 +67,87 @@ class OmniGibsonInterface(MG_EnvInterface):
             pose (np.array): 4x4 eef pose matrix
         """
         return self.get_object_pose(self.robot.eef_links[self.robot.default_arm])
+
+    def get_object_pose(self, obj):
+        """
+        Returns 4x4 object pose given the name of the object and the type.
+
+        Args:
+            obj (BaseObject): OG object
+
+        Returns:
+            obj_pose (np.array): 4x4 object pose
+        """
+        return T.pose2mat(obj.get_position_orientation())
+
+    def _get_object_by_name(self, name: str):
+        """Get object from scene by name, with fallback strategies."""
+        try:
+            # Try object scope first (for newer tasks)
+            if hasattr(self.env.task, 'object_scope') and name in self.env.task.object_scope:
+                return self.env.task.object_scope[name]
+
+            # Try scene registry
+            return self.env.scene.object_registry("name", name)
+        except (KeyError, AttributeError):
+            # If object not found, return None (caller should handle)
+            return None
+
+    def get_object_poses(self):
+        """Gets poses of task-relevant objects based on configuration."""
+        if not self.task_config:
+            return {}
+
+        object_poses = {}
+
+        # Get robot-specific objects if applicable
+        robot_type = type(self.robot).__name__.lower()
+        if robot_type in self.task_config.robot_specific_objects:
+            tracked_objects = {**self.task_config.tracked_objects,
+                             **self.task_config.robot_specific_objects[robot_type]}
+        else:
+            tracked_objects = self.task_config.tracked_objects
+
+        for logical_name, registry_name in tracked_objects.items():
+            # Special handling for robot links (e.g., torso_link4)
+            if logical_name == "torso_link4" and registry_name in ["torso_lift_link", "torso_link4"]:
+                # This is a robot link, not a scene object
+                robot_link = self.env.robots[0].links[registry_name]
+                object_poses[logical_name] = self.get_object_pose(robot_link)
+            else:
+                obj = self._get_object_by_name(registry_name)
+                if obj is not None:
+                    object_poses[logical_name] = self.get_object_pose(obj)
+
+        return object_poses
+
+    def get_subtask_term_signals(self):
+        """Gets termination signals based on configuration."""
+        if not self.task_config:
+            return {}
+
+        signals = {}
+
+        for signal_name, signal_config in self.task_config.termination_signals.items():
+            signal_type = signal_config.get("type")
+            obj_name = signal_config.get("object")
+
+            obj = self._get_object_by_name(obj_name) if obj_name else None
+
+            if signal_type == "grasp" and obj:
+                arm = signal_config.get("arm", "default")
+                signals[signal_name] = int(self.robot.is_grasping(arm=arm, candidate_obj=obj))
+
+            elif signal_type == "touch" and obj:
+                signals[signal_name] = int(self.robot.states[Touching].get_value(obj))
+
+            elif signal_type == "custom":
+                # Allow custom signal evaluation via callback
+                callback = signal_config.get("callback")
+                if callable(callback):
+                    signals[signal_name] = callback(self.env, self.robot, obj)
+
+        return signals
 
     def target_pose_to_action(self, target_pose, relative=True):
         """
@@ -160,101 +252,15 @@ class OmniGibsonInterface(MG_EnvInterface):
         # last dimension is gripper action
         return action[-1:]
 
-    def get_object_pose(self, obj):
-        """
-        Returns 4x4 object pose given the name of the object and the type.
 
-        Args:
-            obj (BaseObject): OG object
-
-        Returns:
-            obj_pose (np.array): 4x4 object pose
-        """
-        return T.pose2mat(obj.get_position_orientation())
-
-
-class MG_TestPenBook(OmniGibsonInterface):
-    """
-    Corresponds to OG TestPenBook task and variants.
-    """
-    def get_object_poses(self):
-        """
-        Gets the pose of each object relevant to MimicGen data generation in the current scene.
-
-        Returns:
-            object_poses (dict): dictionary that maps object name (str) to object pose matrix (4x4 np.array)
-        """
-        # two relevant objects - eraser and book
-        return dict(
-            eraser=self.get_object_pose(obj=self.env.task.object_scope["rubber_eraser.n.01_1"]),
-            book=self.get_object_pose(obj=self.env.task.object_scope["hardback.n.01_1"]),
-        )
-
-    def get_subtask_term_signals(self):
-        """
-        Gets a dictionary of binary flags for each subtask in a task. The flag is 1
-        when the subtask has been completed and 0 otherwise. MimicGen only uses this
-        when parsing source demonstrations at the start of data generation, and it only
-        uses the first 0 -> 1 transition in this signal to detect the end of a subtask.
-
-        Returns:
-            subtask_term_signals (dict): dictionary that maps subtask name to termination flag (0 or 1)
-        """
-        signals = dict()
-
-        # The signal is when the robot grasps the eraser
-        signals["grasp"] = int(self.robot.is_grasping(arm="default", candidate_obj=self.env.task.object_scope["rubber_eraser.n.01_1"]))
-
-        # final subtask is placing the eraser on the book (motion relative to book) - but final subtask signal is not needed
-        return signals
-
-
-from omnigibson.object_states import *
-
-class MG_TestCabinet(OmniGibsonInterface):
-    """
-    Corresponds to OG TestCabinet task and variants.
-    """
-    def get_object_poses(self):
-        """
-        Gets the pose of each object relevant to MimicGen data generation in the current scene.
-
-        Returns:
-            object_poses (dict): dictionary that maps object name (str) to object pose matrix (4x4 np.array)
-        """
-        # one relevant object - cabinet
-        return dict(
-            cabinet=self.get_object_pose(obj=self.env.task.object_scope["cabinet.n.01_1"]),
-        )
-
-    def get_subtask_term_signals(self):
-        """
-        Gets a dictionary of binary flags for each subtask in a task. The flag is 1
-        when the subtask has been completed and 0 otherwise. MimicGen only uses this
-        when parsing source demonstrations at the start of data generation, and it only
-        uses the first 0 -> 1 transition in this signal to detect the end of a subtask.
-
-        Returns:
-            subtask_term_signals (dict): dictionary that maps subtask name to termination flag (0 or 1)
-        """
-        signals = dict()
-
-        # The signal is when the robot touches the cabinet
-        signals["touch"] = int(self.robot.states[Touching].get_value(self.env.task.object_scope["cabinet.n.01_1"]))
-
-        # final subtask is pulling the drawer open - but final subtask signal is not needed
-        return signals
-
-
-# bimanual utils
 class OmniGibsonInterfaceBimanual(OmniGibsonInterface):
     """
     MimicGen environment interface class for bimanual robots.
     """
     INTERFACE_TYPE = "omnigibson_bimanual"
 
-    def __init__(self, env):
-        super(OmniGibsonInterfaceBimanual, self).__init__(env)
+    def __init__(self, env, task_config: TaskConfig = None):
+        super(OmniGibsonInterfaceBimanual, self).__init__(env, task_config)
         self._setup_arm_controller()
         self.gripper_action_dim = th.cat([self.robot.controller_action_idx["gripper_left"], self.robot.controller_action_idx["gripper_right"]])
 
@@ -262,26 +268,74 @@ class OmniGibsonInterfaceBimanual(OmniGibsonInterface):
         """
         Sets up the arm controller for the robot. This is necessary to know where the arm command
         starts and ends in the action vector.
-
-        base <omnigibson.controllers.joint_controller.JointController object at 0x7fda15a168c0> 3
-        camera <omnigibson.controllers.joint_controller.JointController object at 0x7fda15903f70> 2
-        arm_left <omnigibson.controllers.ik_controller.InverseKinematicsController object at 0x7fcce648d960> 6
-        gripper_left <omnigibson.controllers.multi_finger_gripper_controller.MultiFingerGripperController object at 0x7fda15a16860> 1
-        arm_right <omnigibson.controllers.ik_controller.InverseKinematicsController object at 0x7fcd140c5ae0> 6
-        gripper_right <omnigibson.controllers.multi_finger_gripper_controller.MultiFingerGripperController object at 0x7fcd140c5600> 1
         """
         self.robot = self.env.robots[0]
         self.arm_controller = {}
 
-    def get_robot_eef_pose(self, name):
+    def get_robot_eef_pose(self, arm_name=None):
         """
-        Get current robot end effector pose. Should be the same frame as used by the robot end-effector controller.
+        Get current robot end effector pose for specified arm or both.
 
         Returns:
-            pose (np.array): 4x4 eef pose matrix
+            pose (np.array): 4x4 eef pose matrix for single arm, or 8x4 for both arms
         """
-        assert name == "left" or name == "right"
-        return self.get_object_pose(self.robot.eef_links[name])
+        if arm_name:
+            assert arm_name in ["left", "right"]
+            return self.get_object_pose(self.robot.eef_links[arm_name])
+        else:
+            # Return concatenated poses for both arms
+            left_pose = self.get_object_pose(self.robot.eef_links["left"])
+            right_pose = self.get_object_pose(self.robot.eef_links["right"])
+            return np.concatenate([left_pose, right_pose], axis=0)
+
+    def get_datagen_info(self, action=None):
+        """
+        Get information needed for data generation, at the current
+        timestep of simulation. If @action is provided, it will be used to
+        compute the target eef pose for the controller, otherwise that
+        will be excluded.
+
+        Returns:
+            datagen_info (DatagenInfo instance)
+        """
+
+        # current eef pose
+        eef_pose = self.get_robot_eef_pose()  # 8x4 for bimanual
+        base_pose = self.get_object_pose(self.robot)
+
+        # object poses
+        object_poses = self.get_object_poses()
+
+        # subtask termination signals
+        subtask_term_signals = self.get_subtask_term_signals()
+
+        # these must be extracted from provided action
+        # Only record eef_pose that are actually achieved, not the target_pose
+        gripper_action = None
+        if action is not None:
+            gripper_action = self.action_to_gripper_action(action)
+
+        datagen_info = DatagenInfo(
+            base_pose=base_pose,
+            eef_pose=eef_pose,
+            object_poses=object_poses,
+            subtask_term_signals=subtask_term_signals,
+            gripper_action=gripper_action,
+        )
+        return datagen_info
+
+    def action_to_gripper_action(self, action):
+        """
+        Extracts the gripper actuation part of an action (compatible with env.step).
+
+        Args:
+            action (np.array): environment action
+
+        Returns:
+            gripper_action (np.array): subset of environment action for gripper actuation
+        """
+        gripper_action = action[self.gripper_action_dim]
+        return gripper_action
 
     def target_pose_to_action(self, target_pose, relative=True):
         """
@@ -419,7 +473,6 @@ class OmniGibsonInterfaceBimanual(OmniGibsonInterface):
             th.tensor or None: Action array for one step for the robot to do nothing
         """
         # change to quaternion 
-        # 
 
         # Ensure float32
         target_pose = target_pose.astype(np.float32)
@@ -523,426 +576,282 @@ class OmniGibsonInterfaceBimanual(OmniGibsonInterface):
         new_action[self.gripper_action_dim] = action[self.gripper_action_dim]
         new_action[:5] = action[:5]
 
-        #print('new_action', new_action)
-        #print('action', action)
-        #print(th.isclose(action, th.from_numpy(new_action), atol=1e-2))
-
         # @new_action has one less element than @action because it doesn't have the gripper actuation
         assert th.allclose(action, th.from_numpy(new_action), atol=1e-2)
 
 
         return target_pose
 
-    def action_to_gripper_action(self, action):
-        """
-        Extracts the gripper actuation part of an action (compatible with env.step).
 
-        Args:
-            action (np.array): environment action
+# Task configuration definitions
+TASK_CONFIGS = {
+    "test_pen_book": TaskConfig(
+        name="test_pen_book",
+        tracked_objects={
+            "eraser": "rubber_eraser.n.01_1",
+            "book": "hardback.n.01_1",
+        },
+        termination_signals={
+            "grasp": {
+                "type": "grasp",
+                "object": "rubber_eraser.n.01_1",
+                "arm": "default"
+            }
+        },
+        bimanual=False
+    ),
 
-        Returns:
-            gripper_action (np.array): subset of environment action for gripper actuation
-        """
-        # gripper_action_left = action[-8]
-        # gripper_action_right = action[-1:]
-        # gripper_action = np.concatenate([gripper_action_left, gripper_action_right], axis=0)
-        gripper_action = action[self.gripper_action_dim]
-        return gripper_action
+    "test_cabinet": TaskConfig(
+        name="test_cabinet",
+        tracked_objects={
+            "cabinet": "cabinet.n.01_1",
+        },
+        termination_signals={
+            "touch": {
+                "type": "touch",
+                "object": "cabinet.n.01_1"
+            }
+        },
+        bimanual=False
+    ),
 
-    def get_datagen_info(self, action=None):
+    "test_tiago_giftbox": TaskConfig(
+        name="test_tiago_giftbox",
+        tracked_objects={
+            "gift_box": "gift_box.n.01_1",
+        },
+        termination_signals={
+            "touch": {
+                "type": "touch",
+                "object": "gift_box.n.01_1"
+            }
+        }
+    ),
 
-        """
-        Get information needed for data generation, at the current
-        timestep of simulation. If @action is provided, it will be used to 
-        compute the target eef pose for the controller, otherwise that 
-        will be excluded.
+    "test_tiago_notebook": TaskConfig(
+        name="test_tiago_notebook",
+        tracked_objects={
+            "notebook": "notebook.n.01_1",
+            "breakfast_table": "breakfast_table.n.01_1",
+        },
+        termination_signals={
+            "touch": {
+                "type": "touch",
+                "object": "notebook.n.01_1"
+            },
+            "grasp": {
+                "type": "grasp",
+                "object": "notebook.n.01_1",
+                "arm": "right"
+            }
+        }
+    ),
 
-        Returns:
-            datagen_info (DatagenInfo instance)
-        """
+    "test_tiago_cup": TaskConfig(
+        name="test_tiago_cup",
+        tracked_objects={
+            "coffee_cup": "coffee_cup",
+            "teacup": "teacup",
+            "breakfast_table": "breakfast_table",
+        },
+        termination_signals={
+            "grasp_right": {
+                "type": "grasp",
+                "object": "coffee_cup",
+                "arm": "right"
+            }
+        }
+    ),
 
-        # current eef pose
-        eef_pose_left = self.get_robot_eef_pose('left') # 4x4
-        eef_pose_right = self.get_robot_eef_pose('right') # 4x4
-        # concatenate the eef poses
-        eef_pose = np.concatenate([eef_pose_left, eef_pose_right], axis=0) # 8x4
+    "test_r1_cup": TaskConfig(
+        name="test_r1_cup",
+        tracked_objects={
+            "coffee_cup": "coffee_cup",
+            "teacup": "teacup",
+            "breakfast_table": "breakfast_table",
+        },
+        termination_signals={
+            "grasp_right": {
+                "type": "grasp",
+                "object": "coffee_cup",
+                "arm": "right"
+            }
+        }
+    ),
 
-        base_pose = self.get_object_pose(self.robot)
-        
-        # object poses
-        object_poses = self.get_object_poses()
+    "r1_put_away_cup": TaskConfig(
+        name="r1_put_away_cup",
+        tracked_objects={
+            "coffee_cup": "coffee_cup",
+            "teacup": "teacup",
+            "breakfast_table": "breakfast_table",
+        },
+        termination_signals={
+            "grasp_right": {
+                "type": "grasp",
+                "object": "coffee_cup",
+                "arm": "right"
+            }
+        }
+    ),
 
-        # subtask termination signals
-        subtask_term_signals = self.get_subtask_term_signals()
-        # print('subtask_term_signals', subtask_term_signals)
+    "r1_tidy_table": TaskConfig(
+        name="r1_tidy_table",
+        tracked_objects={
+            "teacup_601": "teacup_601",
+            "drop_in_sink_awvzkn_0": "drop_in_sink_awvzkn_0",
+        },
+        termination_signals={
+            "grasp_right": {
+                "type": "grasp",
+                "object": "coffee_cup",  # TODO: update this
+                "arm": "right"
+            }
+        }
+    ),
 
-        # these must be extracted from provided action
-        # Only record eef_pose that are actually achieved, not the target_pose
-        target_pose = None
-        gripper_action = None
-        if action is not None:
-            # target_pose = self.action_to_target_pose(action=action, relative=True) # 8x4
-            gripper_action = self.action_to_gripper_action(action=action)
+    "r1_pick_cup": TaskConfig(
+        name="r1_pick_cup",
+        tracked_objects={
+            "coffee_cup_7": "coffee_cup_7",
+            "breakfast_table_6": "breakfast_table_6",
+        },
+        termination_signals={
+            "grasp_right": {
+                "type": "grasp",
+                "object": "coffee_cup",  # TODO: update this
+                "arm": "right"
+            }
+        }
+    ),
 
-        datagen_info = DatagenInfo(
-            base_pose=base_pose,
-            eef_pose=eef_pose,
-            object_poses=object_poses,
-            subtask_term_signals=subtask_term_signals,
-            # target_pose=target_pose,
-            gripper_action=gripper_action,
-        )
-        return datagen_info
+    "r1_dishes_away": TaskConfig(
+        name="r1_dishes_away",
+        tracked_objects={
+            "countertop_kelker_0": "countertop_kelker_0",
+            "shelf_pfusrd_1": "shelf_pfusrd_1",
+            "plate_603": "plate_603",
+            "plate_602": "plate_602",
+            "plate_601": "plate_601",
+        },
+        termination_signals={
+            "grasp_right": {
+                "type": "grasp",
+                "object": "coffee_cup",  # TODO: update this
+                "arm": "right"
+            }
+        }
+    ),
+
+    "r1_clean_pan": TaskConfig(
+        name="r1_clean_pan",
+        tracked_objects={
+            "frying_pan_602": "frying_pan_602",
+            "scrub_brush_601": "scrub_brush_601",
+            "robot_r1": "robot_r1",
+        },
+        robot_specific_objects={
+            "tiago": {"torso_link4": "torso_lift_link"},
+            "r1": {"torso_link4": "torso_link4"},
+        },
+        termination_signals={
+            "grasp_right": {
+                "type": "grasp",
+                "object": "coffee_cup",  # TODO: update this
+                "arm": "right"
+            }
+        }
+    ),
+
+    "r1_bringing_water": TaskConfig(
+        name="r1_bringing_water",
+        tracked_objects={
+            "beer_bottle_595": "beer_bottle_595",
+            "fridge_dszchb_0": "fridge_dszchb_0",
+        },
+        termination_signals={
+            "grasp_right": {
+                "type": "grasp",
+                "object": "coffee_cup",  # TODO: update this
+                "arm": "right"
+            }
+        }
+    ),
+}
+
+
+def create_interface(env, task_name: str, bimanual: bool = None):
+    """
+    Factory function to create appropriate interface for a task.
+
+    Args:
+        env: OmniGibson environment
+        task_name: Name of the task (must be in TASK_CONFIGS)
+        bimanual: Whether to use bimanual interface (auto-detected if None)
+
+    Returns:
+        Configured interface instance
+    """
+    if task_name not in TASK_CONFIGS:
+        raise ValueError(f"Unknown task: {task_name}. Available: {list(TASK_CONFIGS.keys())}")
+
+    task_config = TASK_CONFIGS[task_name]
+
+    # Auto-detect bimanual if not specified
+    if bimanual is None:
+        bimanual = task_config.bimanual
+
+    if bimanual:
+        return OmniGibsonInterfaceBimanual(env, task_config)
+    else:
+        return OmniGibsonInterface(env, task_config)
+
+
+# Backward compatibility - create legacy classes that use the new system
+class MG_TestPenBook(OmniGibsonInterface):
+    def __init__(self, env):
+        super().__init__(env, TASK_CONFIGS["test_pen_book"])
+
+class MG_TestCabinet(OmniGibsonInterface):
+    def __init__(self, env):
+        super().__init__(env, TASK_CONFIGS["test_cabinet"])
 
 class MG_TestTiagoGiftbox(OmniGibsonInterfaceBimanual):
-    """
-    Corresponds to OG test_tiago_giftbox task and variants.
-    """
-    def get_object_poses(self):
-        """
-        Gets the pose of each object relevant to MimicGen data generation in the current scene.
-
-        Returns:
-            object_poses (dict): dictionary that maps object name (str) to object pose matrix (4x4 np.array)
-        """
-        # one relative object: giftbox
-        return dict(
-            gift_box=self.get_object_pose(obj=self.env.task.object_scope["gift_box.n.01_1"]),
-        )
-    
-    def get_subtask_term_signals(self):
-        """
-        Gets a dictionary of binary flags for each subtask in a task. The flag is 1
-        when the subtask has been completed and 0 otherwise. MimicGen only uses this
-        when parsing source demonstrations at the start of data generation, and it only
-        uses the first 0 -> 1 transition in this signal to detect the end of a subtask.
-
-        Returns:
-            subtask_term_signals (dict): dictionary that maps subtask name to termination flag (0 or 1)
-        """
-        signals = dict()
-
-        # The signal is when the left gripper touches the giftbox
-        signals["touch"] = int(self.robot.states[Touching].get_value(self.env.task.object_scope["gift_box.n.01_1"]))
-
-        return signals
+    def __init__(self, env):
+        super().__init__(env, TASK_CONFIGS["test_tiago_giftbox"])
 
 class MG_TestTiagoNotebook(OmniGibsonInterfaceBimanual):
-    """
-    Corresponds to OG test_tiago_notebook task and variants.
-    """
-    def get_object_poses(self):
-        """
-        Gets the pose of each object relevant to MimicGen data generation in the current scene.
-
-        Returns:
-            object_poses (dict): dictionary that maps object name (str) to object pose matrix (4x4 np.array)
-        """
-        return dict(
-            notebook=self.get_object_pose(obj=self.env.task.object_scope["notebook.n.01_1"]),
-            breakfast_table=self.get_object_pose(obj=self.env.task.object_scope["breakfast_table.n.01_1"]),
-        )
-    
-    def get_subtask_term_signals(self):
-        """
-        Gets a dictionary of binary flags for each subtask in a task. The flag is 1
-        when the subtask has been completed and 0 otherwise. MimicGen only uses this
-        when parsing source demonstrations at the start of data generation, and it only
-        uses the first 0 -> 1 transition in this signal to detect the end of a subtask.
-
-        Returns:
-            subtask_term_signals (dict): dictionary that maps subtask name to termination flag (0 or 1)
-        """
-        signals = dict()
-
-        # The signal is when the left gripper touches the giftbox
-        signals["touch"] = int(self.robot.states[Touching].get_value(self.env.task.object_scope["notebook.n.01_1"]))
-
-        signals["grasp"] = abs(int(self.robot.is_grasping(arm="right", candidate_obj=self.env.task.object_scope["notebook.n.01_1"])))
-
-        return signals
+    def __init__(self, env):
+        super().__init__(env, TASK_CONFIGS["test_tiago_notebook"])
 
 class MG_TestTiagoCup(OmniGibsonInterfaceBimanual):
-    """
-    Corresponds to OG test_tiago_cup task and variants.
-    """
-    def get_object_poses(self):
-        """
-        Gets the pose of each object relevant to MimicGen data generation in the current scene.
-
-        Returns:
-            object_poses (dict): dictionary that maps object name (str) to object pose matrix (4x4 np.array)
-        """
-        # two relative objects: coffee_cup and paper_cup
-        return dict(
-            coffee_cup=self.get_object_pose(obj=self.env.scene.object_registry("name", "coffee_cup")),
-            teacup=self.get_object_pose(obj=self.env.scene.object_registry("name", "teacup")),
-            breakfast_table=self.get_object_pose(obj=self.env.scene.object_registry("name", "breakfast_table")),
-        )
-    
-    def get_subtask_term_signals(self):
-        """
-        Gets a dictionary of binary flags for each subtask in a task. The flag is 1
-        when the subtask has been completed and 0 otherwise. MimicGen only uses this
-        when parsing source demonstrations at the start of data generation, and it only
-        uses the first 0 -> 1 transition in this signal to detect the end of a subtask.
-
-        Returns:
-            subtask_term_signals (dict): dictionary that maps subtask name to termination flag (0 or 1)
-        """
-        signals = dict()
-
-        signals["grasp_right"] = abs(int(self.robot.is_grasping(arm="right", candidate_obj=self.env.scene.object_registry("name", "coffee_cup"))))
-
-
-        return signals
-
+    def __init__(self, env):
+        super().__init__(env, TASK_CONFIGS["test_tiago_cup"])
 
 class MG_TestR1Cup(OmniGibsonInterfaceBimanual):
-    """
-    Corresponds to OG test_tiago_cup task and variants.
-    """
-    def get_object_poses(self):
-        """
-        Gets the pose of each object relevant to MimicGen data generation in the current scene.
+    def __init__(self, env):
+        super().__init__(env, TASK_CONFIGS["test_r1_cup"])
 
-        Returns:
-            object_poses (dict): dictionary that maps object name (str) to object pose matrix (4x4 np.array)
-        """
-        # two relative objects: coffee_cup and teacup
-        return dict(
-            coffee_cup=self.get_object_pose(obj=self.env.scene.object_registry("name", "coffee_cup")),
-            teacup=self.get_object_pose(obj=self.env.scene.object_registry("name", "teacup")),
-            breakfast_table=self.get_object_pose(obj=self.env.scene.object_registry("name", "breakfast_table")),
-        )
-
-    def get_subtask_term_signals(self):
-        """
-        Gets a dictionary of binary flags for each subtask in a task. The flag is 1
-        when the subtask has been completed and 0 otherwise. MimicGen only uses this
-        when parsing source demonstrations at the start of data generation, and it only
-        uses the first 0 -> 1 transition in this signal to detect the end of a subtask.
-
-        Returns:
-            subtask_term_signals (dict): dictionary that maps subtask name to termination flag (0 or 1)
-        """
-        signals = dict()
-
-        signals["grasp_right"] = abs(int(self.robot.is_grasping(arm="right", candidate_obj=self.env.scene.object_registry("name", "coffee_cup"))))
-
-
-        return signals
-    
 class MG_R1PutAwayCup(OmniGibsonInterfaceBimanual):
-    """
-    Corresponds to OG test_r1_cup task and variants.
-    """
-    def get_object_poses(self):
-        """
-        Gets the pose of each object relevant to MimicGen data generation in the current scene.
+    def __init__(self, env):
+        super().__init__(env, TASK_CONFIGS["r1_put_away_cup"])
 
-        Returns:
-            object_poses (dict): dictionary that maps object name (str) to object pose matrix (4x4 np.array)
-        """
-        # two relative objects: coffee_cup and teacup
-        return dict(
-            coffee_cup=self.get_object_pose(obj=self.env.scene.object_registry("name", "coffee_cup")),
-            teacup=self.get_object_pose(obj=self.env.scene.object_registry("name", "teacup")),
-            breakfast_table=self.get_object_pose(obj=self.env.scene.object_registry("name", "breakfast_table")),
-        )
-
-    def get_subtask_term_signals(self):
-        """
-        Gets a dictionary of binary flags for each subtask in a task. The flag is 1
-        when the subtask has been completed and 0 otherwise. MimicGen only uses this
-        when parsing source demonstrations at the start of data generation, and it only
-        uses the first 0 -> 1 transition in this signal to detect the end of a subtask.
-
-        Returns:
-            subtask_term_signals (dict): dictionary that maps subtask name to termination flag (0 or 1)
-        """
-        signals = dict()
-
-        signals["grasp_right"] = abs(int(self.robot.is_grasping(arm="right", candidate_obj=self.env.scene.object_registry("name", "coffee_cup"))))
-
-
-        return signals
-    
 class MG_R1TidyTable(OmniGibsonInterfaceBimanual):
-    """
-    Corresponds to OG test_r1_cup task and variants.
-    """
-    def get_object_poses(self):
-        """
-        Gets the pose of each object relevant to MimicGen data generation in the current scene.
+    def __init__(self, env):
+        super().__init__(env, TASK_CONFIGS["r1_tidy_table"])
 
-        Returns:
-            object_poses (dict): dictionary that maps object name (str) to object pose matrix (4x4 np.array)
-        """
-        # two relative objects: coffee_cup and teacup
-        return dict(
-            teacup_601=self.get_object_pose(obj=self.env.scene.object_registry("name", "teacup_601")),
-            drop_in_sink_awvzkn_0=self.get_object_pose(obj=self.env.scene.object_registry("name", "drop_in_sink_awvzkn_0")),
-        )
-
-    def get_subtask_term_signals(self):
-        """
-        Gets a dictionary of binary flags for each subtask in a task. The flag is 1
-        when the subtask has been completed and 0 otherwise. MimicGen only uses this
-        when parsing source demonstrations at the start of data generation, and it only
-        uses the first 0 -> 1 transition in this signal to detect the end of a subtask.
-
-        Returns:
-            subtask_term_signals (dict): dictionary that maps subtask name to termination flag (0 or 1)
-        """
-        signals = dict()
-
-        signals["grasp_right"] = abs(int(self.robot.is_grasping(arm="right", candidate_obj=self.env.scene.object_registry("name", "coffee_cup"))))
-        return signals
-    
 class MG_R1PickCup(OmniGibsonInterfaceBimanual):
-    """
-    Corresponds to OG test_r1_cup task and variants.
-    """
-    def get_object_poses(self):
-        """
-        Gets the pose of each object relevant to MimicGen data generation in the current scene.
-
-        Returns:
-            object_poses (dict): dictionary that maps object name (str) to object pose matrix (4x4 np.array)
-        """
-        # two relative objects: coffee_cup and teacup
-        return dict(
-            coffee_cup_7=self.get_object_pose(obj=self.env.scene.object_registry("name", "coffee_cup_7")),
-            breakfast_table_6=self.get_object_pose(obj=self.env.scene.object_registry("name", "breakfast_table_6")),
-        )
-
-    def get_subtask_term_signals(self):
-        """
-        Gets a dictionary of binary flags for each subtask in a task. The flag is 1
-        when the subtask has been completed and 0 otherwise. MimicGen only uses this
-        when parsing source demonstrations at the start of data generation, and it only
-        uses the first 0 -> 1 transition in this signal to detect the end of a subtask.
-
-        Returns:
-            subtask_term_signals (dict): dictionary that maps subtask name to termination flag (0 or 1)
-        """
-        signals = dict()
-
-        signals["grasp_right"] = abs(int(self.robot.is_grasping(arm="right", candidate_obj=self.env.scene.object_registry("name", "coffee_cup"))))
-
-
-        return signals
-    
+    def __init__(self, env):
+        super().__init__(env, TASK_CONFIGS["r1_pick_cup"])
 
 class MG_R1DishesAway(OmniGibsonInterfaceBimanual):
-    """
-    Corresponds to OG test_r1_cup task and variants.
-    """
-    def get_object_poses(self):
-        """
-        Gets the pose of each object relevant to MimicGen data generation in the current scene.
-
-        Returns:
-            object_poses (dict): dictionary that maps object name (str) to object pose matrix (4x4 np.array)
-        """
-        # two relative objects: coffee_cup and teacup
-        return dict(
-            countertop_kelker_0=self.get_object_pose(obj=self.env.scene.object_registry("name", "countertop_kelker_0")),
-            shelf_pfusrd_1=self.get_object_pose(obj=self.env.scene.object_registry("name", "shelf_pfusrd_1")),
-            plate_603=self.get_object_pose(obj=self.env.scene.object_registry("name", "plate_603")),
-            plate_602=self.get_object_pose(obj=self.env.scene.object_registry("name", "plate_602")),
-            plate_601=self.get_object_pose(obj=self.env.scene.object_registry("name", "plate_601")),
-        )
-
-    def get_subtask_term_signals(self):
-        """
-        Gets a dictionary of binary flags for each subtask in a task. The flag is 1
-        when the subtask has been completed and 0 otherwise. MimicGen only uses this
-        when parsing source demonstrations at the start of data generation, and it only
-        uses the first 0 -> 1 transition in this signal to detect the end of a subtask.
-
-        Returns:
-            subtask_term_signals (dict): dictionary that maps subtask name to termination flag (0 or 1)
-        """
-        signals = dict()
-
-        signals["grasp_right"] = abs(int(self.robot.is_grasping(arm="right", candidate_obj=self.env.scene.object_registry("name", "coffee_cup"))))
-
-
-        return signals
-    
+    def __init__(self, env):
+        super().__init__(env, TASK_CONFIGS["r1_dishes_away"])
 
 class MG_R1CleanPan(OmniGibsonInterfaceBimanual):
-    """
-    Corresponds to OG test_r1_cup task and variants.
-    """
-    def get_object_poses(self):
-        """
-        Gets the pose of each object relevant to MimicGen data generation in the current scene.
-
-        Returns:
-            object_poses (dict): dictionary that maps object name (str) to object pose matrix (4x4 np.array)
-        """
-        if isinstance(self.robot, Tiago):
-            torso_link_name = "torso_lift_link"
-        elif isinstance(self.robot, R1):
-            torso_link_name = "torso_link4"
-        else:
-            raise ValueError("Robot type not supported")
-        # two relative objects: coffee_cup and teacup
-        return dict(
-            frying_pan_602=self.get_object_pose(obj=self.env.scene.object_registry("name", "frying_pan_602")),
-            scrub_brush_601=self.get_object_pose(obj=self.env.scene.object_registry("name", "scrub_brush_601")),
-            robot_r1=self.get_object_pose(obj=self.env.scene.object_registry("name", "robot_r1")),
-            torso_link4=self.get_object_pose(obj=self.env.robots[0].links[torso_link_name]),
-        )
-
-    def get_subtask_term_signals(self):
-        """
-        Gets a dictionary of binary flags for each subtask in a task. The flag is 1
-        when the subtask has been completed and 0 otherwise. MimicGen only uses this
-        when parsing source demonstrations at the start of data generation, and it only
-        uses the first 0 -> 1 transition in this signal to detect the end of a subtask.
-
-        Returns:
-            subtask_term_signals (dict): dictionary that maps subtask name to termination flag (0 or 1)
-        """
-        signals = dict()
-
-        signals["grasp_right"] = abs(int(self.robot.is_grasping(arm="right", candidate_obj=self.env.scene.object_registry("name", "coffee_cup"))))
-
-
-        return signals
+    def __init__(self, env):
+        super().__init__(env, TASK_CONFIGS["r1_clean_pan"])
 
 class MG_R1BringingWater(OmniGibsonInterfaceBimanual):
-    """
-    Corresponds to OG test_r1_cup task and variants.
-    """
-    def get_object_poses(self):
-        """
-        Gets the pose of each object relevant to MimicGen data generation in the current scene.
-
-        Returns:
-            object_poses (dict): dictionary that maps object name (str) to object pose matrix (4x4 np.array)
-        """
-        # two relative objects: coffee_cup and teacup
-        return dict(
-            beer_bottle_595=self.get_object_pose(obj=self.env.scene.object_registry("name", "beer_bottle_595")),
-            fridge_dszchb_0=T.pose2mat(self.env.scene.object_registry("name", "fridge_dszchb_0").links["link_0"].get_position_orientation()),
-        )
-
-    def get_subtask_term_signals(self):
-        """
-        Gets a dictionary of binary flags for each subtask in a task. The flag is 1
-        when the subtask has been completed and 0 otherwise. MimicGen only uses this
-        when parsing source demonstrations at the start of data generation, and it only
-        uses the first 0 -> 1 transition in this signal to detect the end of a subtask.
-
-        Returns:
-            subtask_term_signals (dict): dictionary that maps subtask name to termination flag (0 or 1)
-        """
-        signals = dict()
-
-        signals["grasp_right"] = abs(int(self.robot.is_grasping(arm="right", candidate_obj=self.env.scene.object_registry("name", "coffee_cup"))))
-        return signals
+    def __init__(self, env):
+        super().__init__(env, TASK_CONFIGS["r1_bringing_water"])

@@ -9,7 +9,6 @@ import datetime
 import shutil
 import shlex
 import tempfile
-import gdown
 import numpy as np
 import copy
 
@@ -19,7 +18,6 @@ from tqdm import tqdm
 
 import robomimic
 import robomimic.utils.tensor_utils as TensorUtils
-from robomimic.utils.file_utils import url_is_alive
 
 from momagen.datagen.datagen_info import DatagenInfo
 
