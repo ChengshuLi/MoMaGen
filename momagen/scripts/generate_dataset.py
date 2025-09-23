@@ -26,11 +26,12 @@ import random
 import imageio
 import numpy as np
 import torch as th
-th.set_printoptions(precision=3, sci_mode=False, linewidth=1000)
 import warnings
-warnings.filterwarnings('ignore', module='trimesh')
 import logging
-# Disable all WARNING and below logs from trimesh
+
+# Configure logging and warnings
+th.set_printoptions(precision=3, sci_mode=False, linewidth=1000)
+warnings.filterwarnings('ignore', module='trimesh')
 logging.getLogger('trimesh').setLevel(logging.ERROR)
 logging.getLogger('imageio_ffmpeg').setLevel(logging.ERROR)
 
@@ -39,6 +40,7 @@ from robomimic.utils.file_utils import get_env_metadata_from_dataset
 import robomimic.utils.env_utils as EnvUtils
 import momagen.utils.file_utils as MG_FileUtils
 import momagen.utils.robomimic_utils as RobomimicUtils
+from momagen.utils.robot_config import configure_tiago_env_meta
 
 from momagen.configs.config import config_factory
 from momagen.configs.task_spec import MG_TaskSpec
@@ -49,52 +51,49 @@ import omnigibson as og
 
 from omnigibson.objects.primitive_object import PrimitiveObject
 
-import os
+# Disable pyembree for trimesh
 os.environ["TRIMESH_NO_PYEMBREE"] = "1"
 
 ROBOT_TYPE = "R1"
 
 def visualize_base_poses(env):
-    # ================== Visualization ==================
+    """Visualize base poses with colored markers (debug function)."""
     sampled_base_poses = env.sampled_base_poses
+
+    # Create failure markers (red)
+    _create_pose_markers(
+        positions=sampled_base_poses["failure"],
+        prefix="base_marker_failure",
+        color=th.tensor([1, 0, 0, 1]),
+        env=env
+    )
+
+    # Create success markers (green)
+    _create_pose_markers(
+        positions=sampled_base_poses["success"],
+        prefix="base_marker_success",
+        color=th.tensor([0, 1, 0, 1]),
+        env=env
+    )
+
+def _create_pose_markers(positions, prefix, color, env):
+    """Helper to create visualization markers."""
     base_marker_list = []
-    failures = sampled_base_poses["failure"]
-    for i in range(len(failures)):
+    for i in range(len(positions)):
         base_marker = PrimitiveObject(
-            relative_prim_path=f"/base_marker_failure_{i}",
+            relative_prim_path=f"/{prefix}_{i}",
             primitive_type="Cube",
-            name=f"base_marker_failure_{i}",
+            name=f"{prefix}_{i}",
             size=th.tensor([0.03, 0.03, 0.03]),
             visual_only=True,
-            rgba=th.tensor([1, 0, 0, 1])
+            rgba=color
         )
         base_marker_list.append(base_marker)
-    og.sim.batch_add_objects(base_marker_list, [env.env.scene] * len(base_marker_list))
-    for i in range(len(failures)):
-        base_pos = failures[i]
-        base_marker_list[i].set_position_orientation(position=base_pos)
 
-    base_marker_list = []
-    success = sampled_base_poses["success"]
-    for i in range(len(success)):
-        base_marker = PrimitiveObject(
-            relative_prim_path=f"/base_marker_success_{i}",
-            primitive_type="Cube",
-            name=f"base_marker_success_{i}",
-            size=th.tensor([0.03, 0.03, 0.03]),
-            visual_only=True,
-            rgba=th.tensor([0, 1, 0, 1])
-        )
-        base_marker_list.append(base_marker)
-    og.sim.batch_add_objects(base_marker_list, [env.env.scene] * len(base_marker_list))
-    for i in range(len(success)):
-        base_pos = success[i]
-        base_marker_list[i].set_position_orientation(position=base_pos)
-
-    # for _ in range(300): og.sim.step()
-    # breakpoint()
-
-    # # ================== Visualization ==================
+    if base_marker_list:
+        og.sim.batch_add_objects(base_marker_list, [env.env.scene] * len(base_marker_list))
+        for i, pos in enumerate(positions):
+            base_marker_list[i].set_position_orientation(position=pos)
 
 def get_important_stats(
     new_dataset_folder_path,
@@ -179,6 +178,18 @@ def generate_dataset(
 
         pause_subtask (bool): if True, pause after every subtask during generation, for
             debugging.
+
+        bimanual (bool): if True, use bimanual robot configuration.
+
+        enable_marker_vis (bool): if True, enable marker visualization.
+
+        ds_ratio (int): downsampling ratio for trajectory.
+
+        no_partial_tasks (bool): if True, don't save partial trajectories.
+
+        headless (bool): if True, run in headless mode.
+
+        baseline (str or None): baseline method to use (e.g., "mimicgen", "skillgen").
     """
 
     # time this run
@@ -203,78 +214,7 @@ def generate_dataset(
     env_meta = get_env_metadata_from_dataset(dataset_path=source_dataset_path)
     
     if ROBOT_TYPE == "Tiago":
-        env_meta["env_kwargs"]["robots"][0]["type"] = "Tiago"
-        tiago_reset_joint_pos = th.tensor([
-            0.0000,  0.0000,  0.0003,  0.0000,  0.0000,
-           -0.0000,  0.3500,  0.8637,      0.8401,      0.0000,
-            -0.8935,     -0.8862,     -0.4500,      1.8286,      1.8267,
-             1.1199,      1.1741,      1.1771,      1.1749,     -1.4134,
-            -1.2823, -1.0891, -1.0891,  0.0450,  0.0450,
-            0.0450,  0.0450
-        ])
-
-
-        tiago_controller_config = {
-            'arm_left': {
-                'name': 'JointController',
-                'motor_type': 'position', 
-                'pos_kp': 150,
-                'command_input_limits': None,
-                'command_output_limits': None,
-                'use_impedances': False,
-                'use_delta_commands': False
-            },
-            'arm_right': {
-                'name': 'JointController',
-                'motor_type': 'position',
-                'pos_kp': 150, 
-                'command_input_limits': None,
-                'command_output_limits': None,
-                'use_impedances': False,
-                'use_delta_commands': False
-            },
-            'gripper_left': {
-                'name': 'MultiFingerGripperController',
-                'mode': 'smooth',
-                'command_input_limits': 'default',
-                'command_output_limits': 'default'
-            },
-            'gripper_right': {
-                'name': 'MultiFingerGripperController', 
-                'mode': 'smooth',
-                'command_input_limits': 'default',
-                'command_output_limits': 'default'
-            },
-            'base': {
-                'name': 'HolonomicBaseJointController',
-                'motor_type': 'velocity',
-                'vel_kp': 150,
-                'command_input_limits': [[-1.0, -1.0, -1.0], [1.0, 1.0, 1.0]],
-                'command_output_limits': [[-1.5      , -1.5      , -3.1415927], [1.5      , 1.5      , 3.1415927]],
-                'use_impedances': False
-            },
-            'trunk': {
-                'name': 'JointController',
-                'motor_type': 'position',
-                'pos_kp': 150,
-                'command_input_limits': None, 
-                'command_output_limits': None,
-                'use_impedances': False,
-                'use_delta_commands': False
-            },
-            'camera': {
-                'name': 'JointController',
-                'motor_type': 'position',
-                'use_impedances': False,
-                'use_delta_commands': False
-            }
-        }        
-        
-        env_meta["env_kwargs"]["robots"][0]["reset_joint_pos"] = tiago_reset_joint_pos.tolist()
-        env_meta["env_kwargs"]["robots"][0]["controller_config"] = tiago_controller_config
-        
-        if env_meta["env_kwargs"]["scene"]["scene_model"] == "house_single_floor":
-            env_meta["env_kwargs"]["scene"]["load_room_types"] = ["kitchen"]
+        env_meta = configure_tiago_env_meta(env_meta)
 
     # set seed for generation
     random.seed(mg_config.experiment.seed)
@@ -430,12 +370,7 @@ def generate_dataset(
         D2_sign=D2_sign,
     )
 
-    # grasp_init_views_video_writer = None
     if write_video:
-        # grasp_init_views_video_writer = imageio.get_writer(f"debug_videos/{video_path}/grasp_init_views.mp4", fps=20)
-        # video_writer_cameras = ["ego_camera", "camera_1", "camera_2", "camera_3", "static_camera"] 
-        # for camera_name in video_writer_cameras:
-        #     os.makedirs(f"{new_dataset_folder_path}/videos/{camera_name}", exist_ok=True) 
         os.makedirs(f"{new_dataset_folder_path}/videos", exist_ok=True) 
 
     print("\n==== Created Data Generator ====")
@@ -473,8 +408,6 @@ def generate_dataset(
             "phase_logs": [],
         }
 
-    # selected_src_demo_inds_all = [] # selected source demo index in @all_demos for each trial
-    # selected_src_demo_inds_succ = [] # selected source demo index in @all_demos for each successful trial
 
     # we will keep generating data until @num_trials successes (if @guarantee_success) else @num_trials attempts
     num_trials = mg_config.experiment.generation.num_trials
@@ -490,53 +423,31 @@ def generate_dataset(
         video_writer = None
         if write_video:
             video_writer = imageio.get_writer(f"{new_dataset_folder_path}/videos/{num_attempts:04d}.mp4", fps=20)
-            # for camera_name in video_writer_cameras:
-            #     video_writers = imageio.get_writer(f"{new_dataset_folder_path}/{num_attempts:04d}.mp4", fps=20)
 
         # generate trajectory
         try:
             episode_start_time = time.time()
-            if baseline is None:
-                generated_traj = data_generator.generate(
-                    env=env,
-                    env_interface=env_interface,
-                    select_src_per_subtask=mg_config.experiment.generation.select_src_per_subtask,
-                    transform_first_robot_pose=mg_config.experiment.generation.transform_first_robot_pose,
-                    interpolate_from_last_target_pose=mg_config.experiment.generation.interpolate_from_last_target_pose,
-                    render=render,
-                    video_writer=video_writer,
-                    video_skip=video_skip,
-                    camera_names=render_image_names,
-                    pause_subtask=pause_subtask,
-                    enable_marker_vis=enable_marker_vis,
-                    ds_ratio=ds_ratio,
-                    grasp_init_views_video_writer=None,
-                    no_partial_tasks=no_partial_tasks,
-                    baseline=baseline,
-                )
-            else:
-                 generated_traj = data_generator.generate_baseline(
-                    env=env,
-                    env_interface=env_interface,
-                    select_src_per_subtask=mg_config.experiment.generation.select_src_per_subtask,
-                    transform_first_robot_pose=mg_config.experiment.generation.transform_first_robot_pose,
-                    interpolate_from_last_target_pose=mg_config.experiment.generation.interpolate_from_last_target_pose,
-                    render=render,
-                    video_writer=video_writer,
-                    video_skip=video_skip,
-                    camera_names=render_image_names,
-                    pause_subtask=pause_subtask,
-                    enable_marker_vis=enable_marker_vis,
-                    ds_ratio=ds_ratio,
-                    grasp_init_views_video_writer=None,
-                    no_partial_tasks=no_partial_tasks,
-                    baseline=baseline,
-                )
+            generated_traj = data_generator.generate(
+                env=env,
+                env_interface=env_interface,
+                select_src_per_subtask=mg_config.experiment.generation.select_src_per_subtask,
+                transform_first_robot_pose=mg_config.experiment.generation.transform_first_robot_pose,
+                interpolate_from_last_target_pose=mg_config.experiment.generation.interpolate_from_last_target_pose,
+                render=render,
+                video_writer=video_writer,
+                video_skip=video_skip,
+                camera_names=render_image_names,
+                pause_subtask=pause_subtask,
+                enable_marker_vis=enable_marker_vis,
+                ds_ratio=ds_ratio,
+                grasp_init_views_video_writer=None,
+                no_partial_tasks=no_partial_tasks,
+                baseline=baseline,
+            )
             episode_time_taken = time.time() - episode_start_time
             print("==============================")
             print("Time taken for generation: {:.2f} seconds".format(episode_time_taken))
             print("==============================")
-            # breakpoint()
 
             # save episode logs
             all_episode_logs["episode_number"].append(num_attempts+num_problematic)
@@ -574,7 +485,6 @@ def generate_dataset(
         if write_video:
             video_writer.close()
         
-        # breakpoint()
         if env.err == "BaseMPFailed":
             base_mp_failures += 1
         elif env.err == "BaseMPIKFailed":
@@ -612,9 +522,6 @@ def generate_dataset(
         print('have {} Base MP failures, {} Arm MP IK failures, {} Arm MP TrajOpt failures, {} Arm MP other failures, {} Base sampling failures, {} Base MP IK failures'.format(base_mp_failures, arm_mp_ik_failures, arm_mp_trajopt_failures, arm_mp_other_failures, base_sampling_failures, base_mp_ik_failures))
         print("*" * 50)
 
-        # remember selection of source demos for each subtask
-        # selected_src_demo_inds_all.append(generated_traj["src_demo_inds"])
-
         if success:
             # store successful demonstration
             ep_lengths.append(generated_traj["actions"].shape[0])
@@ -637,7 +544,6 @@ def generate_dataset(
                 left_mp_ranges=generated_traj["left_mp_ranges"],
                 right_mp_ranges=generated_traj["right_mp_ranges"],
             )
-            # selected_src_demo_inds_succ.append(generated_traj["src_demo_inds"])
         else:
             keep_failed = mg_config.experiment.generation.keep_failed
             less_than_max_failures = (mg_config.experiment.max_num_failures is None) or (num_failures <= mg_config.experiment.max_num_failures)
@@ -693,8 +599,6 @@ def generate_dataset(
         if check_val >= num_trials:
             break
 
-    
-    # visualize_base_poses(env)
 
     # save episode logs
     with open(os.path.join(new_dataset_folder_path, "episode_logs.json"), "w") as f:
@@ -788,12 +692,6 @@ def generate_dataset(
     json_file_path = os.path.join(new_dataset_folder_path, "important_stats.json")
     MG_FileUtils.write_json(json_dic=final_important_stats, json_path=json_file_path)
 
-    # if write_video:
-    #     grasp_init_views_video_writer.close()
-    
-    # NOTE: we are not currently saving the choice of source human demonstrations for each trial,
-    #       but you can do that if you wish -- the information is stored in @selected_src_demo_inds_all
-    #       and @selected_src_demo_inds_succ
 
     if env_meta["type"] == EnvUtils.EB.EnvType.OG_TYPE:
         og.shutdown()

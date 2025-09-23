@@ -4,11 +4,10 @@ A collection of classes used to represent waypoints and trajectories.
 import json
 import time
 import numpy as np
+import copy
 from copy import deepcopy
 
 import momagen.utils.pose_utils as PoseUtils
-import pdb
-import copy
 
 import omnigibson.utils.transform_utils as T
 from omnigibson.action_primitives.curobo import CuRoboEmbodimentSelection
@@ -390,7 +389,6 @@ class WaypointTrajectory(object):
         
         # TODO: the grasping motion should not be downsampled??
         # detect whether the left and right gripper action are changing
-        # breakpoint()
 
         if asyn_ds_ratio:
             # asyn downsample the waypoints regarding the gripper actions
@@ -431,7 +429,6 @@ class WaypointTrajectory(object):
             assert len(left_reaplay_wp_ds) == len(right_reaplay_wp_ds)
             print('downsample wp from {} to {}'.format(len_left_wp, len(right_reaplay_wp_ds)))
         
-        # breakpoint()
         return left_reaplay_wp_ds, right_reaplay_wp_ds
     
     def setup_phase_logs(self, phase_type, baseline=None):
@@ -576,7 +573,6 @@ class WaypointTrajectory(object):
             success = {"task": False}
             init_global_env_step = env.global_env_step
             nav_execution_start_time = time.time()
-            # breakpoint()
             init_arm_left_pos = robot.get_joint_positions()[robot.arm_control_idx["left"]]
             init_arm_right_pos = robot.get_joint_positions()[robot.arm_control_idx["right"]]
             for temp_idx, src_action in enumerate(src_curr_phase_actions):
@@ -760,11 +756,9 @@ class WaypointTrajectory(object):
                     poses_right = th.cat((poses_right, poses_right[-1].repeat(repeat_times, 1, 1)))
 
                 if len(poses_left) != len(poses_right):
-                    breakpoint()
-                assert len(poses_left) == len(poses_right)
+                    assert len(poses_left) == len(poses_right)
                 poses = np.concatenate([poses_left, poses_right], axis=1)
 
-                # breakpoint()
                 init_global_env_step = env.global_env_step
                 arm_interp_start_time = time.time()
                 for pose in poses:
@@ -887,7 +881,6 @@ class WaypointTrajectory(object):
                                 env.execution_phase_ind += 1
                                 return None
                                     
-                        # breakpoint()
                         # Aggregate target_pos and target_quat to match batch_size
                         new_target_pos = {k: th.stack([v for _ in range(env.primitive._motion_generator.batch_size)]) for k, v in new_target_pos.items()}
                         new_target_quat = {
@@ -1088,7 +1081,6 @@ class WaypointTrajectory(object):
             # print('length of replay actions:', len(left_replay_waypoints))
             print("ARM REPLAY START")
             arm_replay_start_time = time.time()
-            # breakpoint()
             
             # If one of the arms has no ref object, we set its target pose as the current pose
             if object_ref["arm_right"] is None:
@@ -1284,7 +1276,6 @@ class WaypointTrajectory(object):
             left_waypoint_ori = self._subsample_tensor(left_waypoint_ori)
             right_waypoint_pos = self._subsample_tensor(right_waypoint_pos)
             right_waypoint_ori = self._subsample_tensor(right_waypoint_ori)
-            # breakpoint()
             
             # left_mp_waypoints = seq[:cur_subtask_end_step_MP[0]]
             # left_waypoint = left_mp_waypoints[-1]
@@ -1544,7 +1535,6 @@ class WaypointTrajectory(object):
             # elif object_ref["arm_left"] is None:
             #     left_waypoint_pos, left_waypoint_ori = robot.get_eef_pose("left")
 
-            # breakpoint()
             
             # If at least one hand has motion planner waypoints, plan the motion
             if len(left_mp_waypoints) > 0 or len(right_mp_waypoints) > 0:
@@ -1602,7 +1592,6 @@ class WaypointTrajectory(object):
                 #     if count > 150:
                 #         env.obj_visible_at_start_of_manip = True
                 # except Exception as e:
-                #     breakpoint()
 
                 
                 # This is for retract behavior. We are not using this as of now, but let it be 
@@ -1691,7 +1680,6 @@ class WaypointTrajectory(object):
                             env.execution_phase_ind += 1
                             return None
                                 
-                    # breakpoint()
                     # Aggregate target_pos and target_quat to match batch_size
                     new_target_pos = {k: th.stack([v for _ in range(env.primitive._motion_generator.batch_size)]) for k, v in new_target_pos.items()}
                     new_target_quat = {
@@ -1930,7 +1918,6 @@ class WaypointTrajectory(object):
             # print('length of replay actions:', len(left_replay_waypoints))
             print("ARM REPLAY START")
             arm_replay_start_time = time.time()
-            # breakpoint()
             
             # If one of the arms has no ref object, we set its target pose as the current pose
             if object_ref["arm_right"] is None:
@@ -1979,7 +1966,6 @@ class WaypointTrajectory(object):
                     env.eef_current_marker_right.set_position_orientation(*robot.get_eef_pose("right"))
                     env.eef_goal_marker_left.set_position_orientation(*left_eef_pose)
                     env.eef_goal_marker_right.set_position_orientation(*right_eef_pose)
-                # import pdb; pdb.set_trace()
                 local_env_step += 1
                 env.global_env_step += 1
                 states.append(state)
@@ -2133,7 +2119,6 @@ class WaypointTrajectory(object):
                 full_retract_mp_planning_finish_time = time.time()
                 phase_logs[env.execution_phase_ind]["full_retract_mp_planning_time"][0] = round(full_retract_mp_planning_finish_time - full_retract_mp_planning_start_time, 2)
                 print("Time taken for full retract MP planning: ", phase_logs[env.execution_phase_ind]["full_retract_mp_planning_time"][0])
-                # breakpoint()
 
                 successes = mp_results[0].success 
                 print("Retract Arm MP successes: ", successes)
@@ -2141,7 +2126,6 @@ class WaypointTrajectory(object):
 
                 if len(success_idx) == 0:
                     print(f"Arm retract failed with status {mp_results[0].status}.")
-                    # breakpoint()
                     phase_logs[env.execution_phase_ind]["full_retract_mp_err"][0] = mp_results[0].status.value
                     retract_torso_only = True
                 else:
@@ -2241,7 +2225,6 @@ class WaypointTrajectory(object):
 
                     if len(success_idx) == 0:
                         print(f"Torso retract failed with status {mp_results[0].status}.")
-                        # breakpoint()
                         phase_logs[env.execution_phase_ind]["torso_retract_mp_err"][0] = mp_results[0].status.value
                     else:
                         phase_logs[env.execution_phase_ind]["torso_retract_mp_err"][0] = "None"

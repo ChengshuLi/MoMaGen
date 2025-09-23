@@ -545,7 +545,6 @@ def merge_all_hdf5(
             f.close()
         except Exception as e:
             print("WARNING: file {} does not have timestamp attribute".format(source_hdf5_path))
-            # breakpoint()
             continue
         filtered_source_hdf5s.append(source_hdf5_path)
         print("len filtered out one", len(filtered_source_hdf5s))

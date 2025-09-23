@@ -3,7 +3,6 @@ Defines task specification objects, which are used to store task-specific settin
 for data generation.
 """
 import json
-import pdb
 
 from momagen.datagen.selection_strategy import assert_selection_strategy_exists
 
@@ -305,7 +304,6 @@ class MG_TaskSpec:
         @from_json classmethod.
         """
         # TODO: the serialize may not work for bimanual configs
-        import pdb; pdb.set_trace()
         json_dict = dict()
         for i, elem in enumerate(self.spec):
             json_dict["subtask_{}".format(i + 1)] = elem
