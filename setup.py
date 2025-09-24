@@ -7,7 +7,7 @@ setup(
     install_requires=[
         'torch',
         'torchvision',
-        'cvxpy',
+        'cvxpy~=1.6.6',
         'open3d',
         'wandb',
         'einops',
