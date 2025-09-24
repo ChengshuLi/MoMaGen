@@ -14,7 +14,6 @@ setup(
         'fpsample',
         'gym',
         'ninja',
-        "cffi~=1.17.1",
     ],
     author='Chengshu Li',
     description='MoMaGen: Generating Demonstrations under Soft and Hard Constraints for Multi-Step Bimanual Mobile Manipulation',
