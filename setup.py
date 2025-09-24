@@ -5,14 +5,14 @@ setup(
     version='0.1.0',
     packages=find_packages(),
     install_requires=[
-        'torch',
-        'torchvision',
         'cvxpy',
         'open3d',
         'wandb',
         'einops',
         'fpsample',
-        'gym'
+        'gym',
+        'ninja',
+        "cffi~=1.17.1",
     ],
     author='Chengshu Li',
     description='MoMaGen: Generating Demonstrations under Soft and Hard Constraints for Multi-Step Bimanual Mobile Manipulation',
