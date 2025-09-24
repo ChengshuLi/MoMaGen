@@ -40,8 +40,11 @@ DEBUG = False
 CAMERA_NAMES = ["agentview", "robot0_eye_in_hand"]
 CAMERA_SIZE = (84, 84)
 
-# task names that support baseline variations
-TASK_NAMES = ["pick_cup", "tidy_table", "dishes_away", "clean_pan", "bringing_water"]
+# task names that support baseline variations (momagen, mimicgen, skillgen)
+TASK_NAMES_WITH_BASELINES = ["pick_cup", "tidy_table", "dishes_away", "clean_pan"]
+
+# task names that only have momagen configuration
+TASK_NAMES_MOMAGEN_ONLY = ["bringing_water"]
 
 BASE_BASE_CONFIG_PATH = os.path.join(momagen.__path__[0], "./datasets/base_configs")
 BASE_CONFIGS = [
@@ -87,14 +90,19 @@ def make_generators(base_configs):
 
     all_settings = []
 
-    # Add configurations for all tasks with baseline variations
-    for task_name in TASK_NAMES:
+    # Add configurations for tasks with baseline variations
+    for task_name in TASK_NAMES_WITH_BASELINES:
         # MoMaGen version
         all_settings.append(create_task_config(task_name))
         # MimicGen baseline
         all_settings.append(create_task_config(task_name, "_mimicgen"))
         # SkillGen baseline
         all_settings.append(create_task_config(task_name, "_skillgen"))
+
+    # Add configurations for tasks with only self version
+    for task_name in TASK_NAMES_MOMAGEN_ONLY:
+        # MoMaGen version only
+        all_settings.append(create_task_config(task_name))
 
     assert len(base_configs) == len(all_settings)
     ret = []
