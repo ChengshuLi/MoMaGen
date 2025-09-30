@@ -777,6 +777,8 @@ TASK_CONFIGS = {
             }
         }
     ),
+    
+    # Add new task configs here
 }
 
 
