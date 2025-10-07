@@ -20,7 +20,7 @@ conda activate momagen
 ### Install dependencies
 ```
 cd MoMaGen && pip install -e .
-cd BEHAVIOR-1K && . ./setup.sh --omnigibson --bddl --teleop --dataset --primitives && cd ..
+cd BEHAVIOR-1K && . ./setup.sh --omnigibson --bddl --joylo --dataset --primitives && cd ..
 cd robomimic && pip install -e . && cd ..
 ```
 
@@ -33,8 +33,9 @@ python momagen/scripts/generate_configs.py
 
 ### Copy scene instances
 ```
-cp momagen/scene_instances/Rs_int/* BEHAVIOR-1K/OmniGibson/omnigibson/data/og_dataset/scenes/Rs_int/json
-cp momagen/scene_instances/house_single_floor/* BEHAVIOR-1K/OmniGibson/omnigibson/data/og_dataset/scenes/house_single_floor/json
+mkdir -p BEHAVIOR-1K/datasets/2025-challenge-task-instances/scenes/Rs_int/json
+cp momagen/scene_instances/Rs_int/* BEHAVIOR-1K/datasets/2025-challenge-task-instances/scenes/Rs_int/json
+cp momagen/scene_instances/house_single_floor/* BEHAVIOR-1K/datasets/2025-challenge-task-instances/scenes/house_single_floor/json
 ```
 
 ### Generate data
