@@ -26,8 +26,6 @@ theme:
 
 plugins:
   - search
-  - sitemap:
-      url: https://momagen.github.io/doc/
 
 nav:
   - Home: index.md
