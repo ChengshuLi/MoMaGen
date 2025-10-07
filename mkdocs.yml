@@ -1,0 +1,51 @@
+site_name: MoMaGen
+site_description: Generating Demonstrations under Soft and Hard Constraints for Multi-Step Bimanual Mobile Manipulation
+site_url: https://momagen.github.io/doc/
+repo_url: https://github.com/ChengshuLi/MoMaGen
+repo_name: ChengshuLi/MoMaGen
+use_directory_urls: true
+
+theme:
+  name: material
+  logo: assets/momagen_logo.png
+  favicon: assets/momagen_logo.png
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: grey
+      accent: red
+  features:
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - navigation.indexes
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+
+plugins:
+  - search
+  - sitemap:
+      url: https://momagen.github.io/doc/
+
+nav:
+  - Home: index.md
+  - Installation: installation.md
+  - Tutorials:
+      - Generating Data: tutorials/generating-data.md
+      - Custom Tasks: tutorials/custom-tasks.md
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - admonition
+  - pymdownx.details
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
