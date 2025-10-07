@@ -71,4 +71,4 @@ cd ..
 
 ## Next Steps
 
-Once installation is complete, proceed to the [Getting Started](tutorials/getting-started.md) tutorial.
+Once installation is complete, proceed to the [data generation](tutorials/generating-data.md) tutorial.
