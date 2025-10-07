@@ -21,7 +21,8 @@ jobs:
           python-version: "3.11"
 
       - name: Install dependencies
-        run: pip install mkdocs-material
+        run: |
+          pip install mkdocs-material mkdocs-plugin-sitemap
 
       - name: Build MkDocs site
         run: mkdocs build --strict
