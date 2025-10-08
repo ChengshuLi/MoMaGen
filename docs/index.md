@@ -6,7 +6,7 @@
 
 ## What is MoMaGen?
 
-MoMaGen is a framework for generating robot demonstrations for complex bimanual mobile manipulation tasks. It handles both soft and hard constraints to create multi-step task demonstrations.
+MoMaGen is a framework for generating several robot demonstrations using a single human-collected demonstration for complex bimanual mobile manipulation tasks. By considering soft constraints—like maintaining visibility of the object during navigation—and hard constraints—such as guaranteeing the object is reachable upon arrival—it produces multi-step demonstrations that are both feasible and useful for policy learning.
 
 ## Supported Tasks
 
