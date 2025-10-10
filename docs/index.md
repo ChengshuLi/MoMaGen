@@ -18,7 +18,7 @@ MoMaGen is a framework for generating several robot demonstrations using a singl
 ## Quick Links
 
 - [Installation Guide](installation.md)
-- [Data Generation](data-generation.md)
+- [Data Generation](./tutorials/generating-data.md)
 - [GitHub Repository](https://github.com/ChengshuLi/MoMaGen)
 
 ## License
