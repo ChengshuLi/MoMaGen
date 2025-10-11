@@ -140,7 +140,62 @@ BEHAVIOR-1K/datasets/2025-challenge-task-instances/scenes/house_double_floor_low
 
 ---
 
+Here’s a cleaned-up and better-formatted version of your **Step 3** section with smoother English, more consistent style, and better structure for readability:
+
+---
+
 ## Step 3: Collect Source Demonstrations
+
+To collect source demonstrations, you can use one of the following input devices:
+
+* **JoyLo** (used for MoMaGen source demos and the BEHAVIOR Challenge dataset)
+* **SpaceMouse**
+
+---
+
+### Using JoyLo
+
+You can learn more about JoyLo here:
+👉 [JoyLo Overview](https://behavior.stanford.edu/behavior_components/joylo)
+
+#### 1. Hardware Setup
+
+Follow this guide to set up the hardware:
+👉 [JoyLo Hardware Guide](https://behavior-robot-suite.github.io/docs/sections/joylo/overview.html)
+
+#### 2. Software Setup
+
+After setting up the hardware, continue with the software instructions on this page:
+👉 [JoyLo Software Guide](https://behavior.stanford.edu/behavior_components/joylo#software-setup)
+
+When you reach **Step 5** of the JoyLo guide, you can launch the recording process.
+
+In one terminal, run:
+
+```bash
+python BEHAVIOR-1K/joylo/experiments/launch_nodes.py \
+  --recording_path /PATH_TO_MOMAGEN/momagen/datasets/source_og/r1_picking_up_trash.hdf5 \
+  --task_name datagen_picking_up_trash
+```
+
+In another terminal, run:
+
+```bash
+python joylo/experiments/run_joylo.py \
+  --gello_model r1 \
+  --joint_config_file joint_config_{YOUR_GELLO_SET_NAME}.yaml
+```
+
+#### 3. Saving the Recording
+
+Once you finish collecting your source demonstration:
+
+1. Focus your cursor on the GUI window.
+2. Press `ESC`.
+3. The recording will be saved automatically, and the program will exit.
+
+---
+
 
 ## Step 4: Annotate Source Demonstrations
 
