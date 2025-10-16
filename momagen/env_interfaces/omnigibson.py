@@ -585,67 +585,6 @@ class OmniGibsonInterfaceBimanual(OmniGibsonInterface):
 
 # Task configuration definitions
 TASK_CONFIGS = {
-    "test_pen_book": TaskConfig(
-        name="test_pen_book",
-        tracked_objects={
-            "eraser": "rubber_eraser.n.01_1",
-            "book": "hardback.n.01_1",
-        },
-        termination_signals={
-            "grasp": {
-                "type": "grasp",
-                "object": "rubber_eraser.n.01_1",
-                "arm": "default"
-            }
-        },
-        bimanual=False
-    ),
-
-    "test_cabinet": TaskConfig(
-        name="test_cabinet",
-        tracked_objects={
-            "cabinet": "cabinet.n.01_1",
-        },
-        termination_signals={
-            "touch": {
-                "type": "touch",
-                "object": "cabinet.n.01_1"
-            }
-        },
-        bimanual=False
-    ),
-
-    "test_tiago_giftbox": TaskConfig(
-        name="test_tiago_giftbox",
-        tracked_objects={
-            "gift_box": "gift_box.n.01_1",
-        },
-        termination_signals={
-            "touch": {
-                "type": "touch",
-                "object": "gift_box.n.01_1"
-            }
-        }
-    ),
-
-    "test_tiago_notebook": TaskConfig(
-        name="test_tiago_notebook",
-        tracked_objects={
-            "notebook": "notebook.n.01_1",
-            "breakfast_table": "breakfast_table.n.01_1",
-        },
-        termination_signals={
-            "touch": {
-                "type": "touch",
-                "object": "notebook.n.01_1"
-            },
-            "grasp": {
-                "type": "grasp",
-                "object": "notebook.n.01_1",
-                "arm": "right"
-            }
-        }
-    ),
 
     "test_tiago_cup": TaskConfig(
         name="test_tiago_cup",
@@ -679,35 +618,12 @@ TASK_CONFIGS = {
         }
     ),
 
-    "r1_put_away_cup": TaskConfig(
-        name="r1_put_away_cup",
-        tracked_objects={
-            "coffee_cup": "coffee_cup",
-            "teacup": "teacup",
-            "breakfast_table": "breakfast_table",
-        },
-        termination_signals={
-            "grasp_right": {
-                "type": "grasp",
-                "object": "coffee_cup",
-                "arm": "right"
-            }
-        }
-    ),
-
     "r1_tidy_table": TaskConfig(
         name="r1_tidy_table",
         tracked_objects={
             "teacup_601": "teacup_601",
             "drop_in_sink_awvzkn_0": "drop_in_sink_awvzkn_0",
         },
-        termination_signals={
-            "grasp_right": {
-                "type": "grasp",
-                "object": "coffee_cup",  # TODO: update this
-                "arm": "right"
-            }
-        }
     ),
 
     "r1_pick_cup": TaskConfig(
@@ -716,13 +632,6 @@ TASK_CONFIGS = {
             "coffee_cup_7": "coffee_cup_7",
             "breakfast_table_6": "breakfast_table_6",
         },
-        termination_signals={
-            "grasp_right": {
-                "type": "grasp",
-                "object": "coffee_cup",  # TODO: update this
-                "arm": "right"
-            }
-        }
     ),
 
     "r1_dishes_away": TaskConfig(
@@ -734,13 +643,6 @@ TASK_CONFIGS = {
             "plate_602": "plate_602",
             "plate_601": "plate_601",
         },
-        termination_signals={
-            "grasp_right": {
-                "type": "grasp",
-                "object": "coffee_cup",  # TODO: update this
-                "arm": "right"
-            }
-        }
     ),
 
     "r1_clean_pan": TaskConfig(
@@ -754,13 +656,6 @@ TASK_CONFIGS = {
             "tiago": {"torso_link4": "torso_lift_link"},
             "r1": {"torso_link4": "torso_link4"},
         },
-        termination_signals={
-            "grasp_right": {
-                "type": "grasp",
-                "object": "coffee_cup",  # TODO: update this
-                "arm": "right"
-            }
-        }
     ),
 
     "r1_bringing_water": TaskConfig(
@@ -769,63 +664,21 @@ TASK_CONFIGS = {
             "beer_bottle_595": "beer_bottle_595",
             "fridge_dszchb_0": "fridge_dszchb_0",
         },
-        termination_signals={
-            "grasp_right": {
-                "type": "grasp",
-                "object": "coffee_cup",  # TODO: update this
-                "arm": "right"
-            }
-        }
     ),
-    
+
+    "r1_picking_up_trash": TaskConfig(
+        name="r1_picking_up_trash"
+    ),
+
+    # ------------------------------------------------------------------------------------------------
     # Add new task configs here
+    # Note 1: tracked_objects is a dictionary with the same key and value. Furthermore, the tracked_object is the
+    # OG specific name of the object which you can find by clicking on the object on the GUI
+    # Note 2: we are currently not using the termination_signals for the data generation, so you can leave it empty
+   
 }
 
-
-def create_interface(env, task_name: str, bimanual: bool = None):
-    """
-    Factory function to create appropriate interface for a task.
-
-    Args:
-        env: OmniGibson environment
-        task_name: Name of the task (must be in TASK_CONFIGS)
-        bimanual: Whether to use bimanual interface (auto-detected if None)
-
-    Returns:
-        Configured interface instance
-    """
-    if task_name not in TASK_CONFIGS:
-        raise ValueError(f"Unknown task: {task_name}. Available: {list(TASK_CONFIGS.keys())}")
-
-    task_config = TASK_CONFIGS[task_name]
-
-    # Auto-detect bimanual if not specified
-    if bimanual is None:
-        bimanual = task_config.bimanual
-
-    if bimanual:
-        return OmniGibsonInterfaceBimanual(env, task_config)
-    else:
-        return OmniGibsonInterface(env, task_config)
-
-
 # Backward compatibility - create legacy classes that use the new system
-class MG_TestPenBook(OmniGibsonInterface):
-    def __init__(self, env):
-        super().__init__(env, TASK_CONFIGS["test_pen_book"])
-
-class MG_TestCabinet(OmniGibsonInterface):
-    def __init__(self, env):
-        super().__init__(env, TASK_CONFIGS["test_cabinet"])
-
-class MG_TestTiagoGiftbox(OmniGibsonInterfaceBimanual):
-    def __init__(self, env):
-        super().__init__(env, TASK_CONFIGS["test_tiago_giftbox"])
-
-class MG_TestTiagoNotebook(OmniGibsonInterfaceBimanual):
-    def __init__(self, env):
-        super().__init__(env, TASK_CONFIGS["test_tiago_notebook"])
-
 class MG_TestTiagoCup(OmniGibsonInterfaceBimanual):
     def __init__(self, env):
         super().__init__(env, TASK_CONFIGS["test_tiago_cup"])
@@ -857,3 +710,41 @@ class MG_R1CleanPan(OmniGibsonInterfaceBimanual):
 class MG_R1BringingWater(OmniGibsonInterfaceBimanual):
     def __init__(self, env):
         super().__init__(env, TASK_CONFIGS["r1_bringing_water"])
+
+class MG_R1PickingUpTrash(OmniGibsonInterfaceBimanual):
+    def __init__(self, env):
+        super().__init__(env, TASK_CONFIGS["r1_picking_up_trash"])
+
+# ------------------------------------------------------------------------------------------------
+# Add new class here for new tasks
+
+
+
+# TODO: check if this is needed
+# def create_interface(env, task_name: str, bimanual: bool = None):
+#     """
+#     Factory function to create appropriate interface for a task.
+
+#     Args:
+#         env: OmniGibson environment
+#         task_name: Name of the task (must be in TASK_CONFIGS)
+#         bimanual: Whether to use bimanual interface (auto-detected if None)
+
+#     Returns:
+#         Configured interface instance
+#     """
+#     if task_name not in TASK_CONFIGS:
+#         raise ValueError(f"Unknown task: {task_name}. Available: {list(TASK_CONFIGS.keys())}")
+
+#     task_config = TASK_CONFIGS[task_name]
+
+#     # Auto-detect bimanual if not specified
+#     if bimanual is None:
+#         bimanual = task_config.bimanual
+
+#     if bimanual:
+#         return OmniGibsonInterfaceBimanual(env, task_config)
+#     else:
+#         return OmniGibsonInterface(env, task_config)
+
+
