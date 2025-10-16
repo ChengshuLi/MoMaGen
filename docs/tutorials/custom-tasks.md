@@ -225,7 +225,7 @@ python momagen/scripts/prepare_src_dataset.py --dataset momagen/datasets/source_
 and note down the simulation step where you would like the contact-rich part to begin (`MP_end_step`) and end (`subtask_term_step`).
 
 <video width="640" controls>
-  <source src="/MoMaGen/docs/assets/momagen_annotation_example.mp4" type="video/mp4">
+  <source src="/MoMaGen/assets/momagen_annotation_example.mp4" type="video/mp4">
   Your browser does not support the video tag.
 </video>
 
