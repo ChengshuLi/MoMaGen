@@ -61,6 +61,8 @@ BASE_CONFIGS = [
     os.path.join(BASE_BASE_CONFIG_PATH, "r1_clean_pan_mimicgen.json"),
     os.path.join(BASE_BASE_CONFIG_PATH, "r1_clean_pan_skillgen.json"),
     os.path.join(BASE_BASE_CONFIG_PATH, "r1_bringing_water.json"),
+    # Add new base configs here
+    
 ]
 
 def make_generators(base_configs):
