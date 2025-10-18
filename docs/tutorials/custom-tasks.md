@@ -207,20 +207,21 @@ This step creates the base MoMaGen task config. Concretely, you need to create a
 Note that in all the MoMaGen tasks, we have 1 subtask for each phase. You can also have multiple subtasks for each phase if you would like. The only thing you need to ensure for a subtask is that it has atmost one free-space and atmost one contact-rich part. 
 4. For each subtask, mention the `object_ref` and the `attached_obj` for each arm. `object_ref` is the reference object for this arm and `attached_obj` is the object that the gripper is holding (if any). 
 5. Create env_interface class (search `Add new class here for new tasks`) and task_config (search `Add new task configs here`) for the new custom task in `momagen/env_interfaces/omnigibson.py`
-6. Now comes the heavylifting, for each subtask, we need to mention the `MP_end_step` and `subtask_term_step`. The simulation step from `MP_end_step` to the `subtask_end_step` is considered the contact-rich part of the subtask and will be "replayed". To obtain these values, you can replay the source demonstration using 
+6. Now comes the heavylifting, for each subtask, we need to mention the `MP_end_step` and `subtask_term_step`. The simulation step from `MP_end_step` to the `subtask_end_step` is considered the contact-rich part of the subtask and will be "replayed". To obtain these values, you can replay the source demonstration using
 
 ```bash
-python momagen/scripts/prepare_src_dataset.py --dataset momagen/datasets/source_og/{hdf5_name} \ 
---env_interface {env_interface e.g. MG_R1PickCup} \ 
---env_interface_type omnigibson_bimanual \ 
---replay_for_annotation` 
+python momagen/scripts/prepare_src_dataset.py --dataset momagen/datasets/source_og/{hdf5_name} --env_interface {env_interface e.g. MG_R1PickCup} --env_interface_type omnigibson_bimanual --replay_for_annotation 
 ```
 and note down the simulation step where you would like the contact-rich part to begin (`MP_end_step`) and end (`subtask_term_step`).
-
 <video width="640" controls>
   <source src="/MoMaGen/assets/momagen_annotation_example.mp4" type="video/mp4">
   Your browser does not support the video tag.
 </video>
+7. Now, we can generate the hdf5 with the `datagen_info` key which is used in the MoMaGen data generation pipeline.
+
+```bash
+python momagen/scripts/prepare_src_dataset.py --dataset momagen/datasets/source_og/{hdf5_name} --env_interface {env_interface e.g. MG_R1PickCup} --env_interface_type omnigibson_bimanual --generate_processed_hdf5
+```
 
 ## Step 5: Define MoMaGen Task Configuration
 

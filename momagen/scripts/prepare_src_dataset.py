@@ -11,6 +11,7 @@ Example usage:
     # prepare a source dataset collected on robosuite Square task, but only use first 10 demos, and write output to new hdf5
     python prepare_src_dataset.py --dataset /path/to/square.hdf5 --env_interface MG_Square --env_interface_type robosuite --n 10 --output /tmp/square_new.hdf5
 """
+import os
 import shutil
 import json
 import h5py
@@ -97,8 +98,7 @@ def prepare_src_dataset(
     env_interface_type,
     filter_key=None,
     n=None,
-    output_path=None,
-    save_dataset=False,
+    generate_processed_hdf5=False,
     replay_for_annotation=False
 ):
     """
@@ -119,13 +119,16 @@ def prepare_src_dataset(
 
         n (int or None): if provided, stop after n trajectories are processed
 
-        output_path (str or None): if provided, write a new hdf5 here instead of modifying the
-            original dataset in-place
+        generate_processed_hdf5 (bool): if True, generate the processed hdf5 with datagen_info key
+
+        replay_for_annotation (bool): if True, replay the dataset to break after X steps to note down the MP_end_step and subtask_term_step for each subtask
     """
-    # maybe write to new file instead of modifying existing file in-place
-    if output_path is not None:
-        shutil.copy(dataset_path, output_path)
-        # dataset_path = output_path
+    # write to new file instead of modifying existing file in-place
+    f_name = dataset_path.split("/")[-1]
+    output_dir = "momagen/datasets/processed_source_demos"
+    os.makedirs(output_dir, exist_ok=True)
+    output_path = os.path.join(output_dir, f_name)
+    shutil.copy(dataset_path, output_path)
 
     if env_interface_type == "omnigibson" or env_interface_type == "omnigibson_bimanual":
         FileUtils.preprocess_omnigibson_dataset(dataset_path)
@@ -200,8 +203,8 @@ def prepare_src_dataset(
 
     env.input_hdf5.close()
     
-    if not save_dataset:
-        print("Not saving the dataset. Only used to visualize the collected demo")
+    if not generate_processed_hdf5:
+        print("Not generating the processed hdf5. Only used to visualize the collected demo")
         return
 
     # open file to modify it
@@ -285,15 +288,9 @@ if __name__ == "__main__":
         help="(optional) name of filter key, to select a subset of demo keys in the source hdf5",
     )
     parser.add_argument(
-        "--output",
-        type=str,
-        default=None,
-        help="(optional) path to output hdf5 dataset, instead of modifying existing dataset in-place",
-    )
-    parser.add_argument(
-        "--save",
+        "--generate_processed_hdf5",
         action='store_true',
-        help="if not passed, don't save the dataset. Only used to visualize the collected demo",
+        help="if not passed, don't generate the processed hdf5. Only used to visualize the collected demo",
     )
     parser.add_argument(
         "--replay_for_annotation",
@@ -308,7 +305,6 @@ if __name__ == "__main__":
         env_interface_type=args.env_interface_type,
         filter_key=args.filter_key,
         n=args.n,
-        output_path=args.output,
-        save_dataset=args.save,
+        generate_processed_hdf5=args.generate_processed_hdf5,
         replay_for_annotation=args.replay_for_annotation,
     )
