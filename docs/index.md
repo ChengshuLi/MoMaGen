@@ -8,12 +8,12 @@
 
 MoMaGen is a framework for generating several robot demonstrations using a single human-collected demonstration for complex bimanual mobile manipulation tasks. By considering soft constraints—like maintaining visibility of the object during navigation—and hard constraints—such as guaranteeing the object is reachable upon arrival—it produces multi-step demonstrations that are both feasible and useful for policy learning.
 
-## Supported Tasks
+<!-- ## Supported Tasks
 
 - `pick_cup` - Pick and place a cup
 - `tidy_table` - Organize objects on a table
 - `dishes_away` - Put dishes into storage
-- `clean_pan` - Clean and store a pan
+- `clean_pan` - Clean and store a pan -->
 
 ## Quick Links
 
