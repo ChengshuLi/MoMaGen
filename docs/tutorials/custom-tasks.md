@@ -222,8 +222,6 @@ python momagen/scripts/prepare_src_dataset.py --dataset momagen/datasets/source_
 python momagen/scripts/generate_configs.py
 ```
 10. Create a new class for the new task in `momagen/configs/omnigibson.py` 
-seed $WORKER_ID
-```
 
 ## Step 5: Run Data Genration
 
@@ -246,5 +244,7 @@ python momagen/scripts/generate_dataset.py \
     --num_demos $NUM_DEMOS \
     --bimanual \
     --folder $FOLDER/$TASK/r1_$TASK\_worker_$WORKER_ID \
-    --
+    --seed $WORKER_ID
+```
+
 
