@@ -207,8 +207,7 @@ Note that in all the MoMaGen tasks, we have 1 subtask for each phase. You can al
 7. Now comes the heavylifting, for each subtask, we need to mention the `MP_end_step` and `subtask_term_step`. The simulation step from `MP_end_step` to the `subtask_end_step` is considered the contact-rich part of the subtask and will be "replayed". To obtain these values, you can replay the source demonstration using
 ```bash
 python momagen/scripts/prepare_src_dataset.py --dataset momagen/datasets/source_og/{hdf5_name} --env_interface {env_interface e.g. MG_R1PickCup} --env_interface_type omnigibson_bimanual --replay_for_annotation 
-```
-and note down the simulation step where you would like the contact-rich part to begin (`MP_end_step`) and end (`subtask_term_step`).
+``` and note down the simulation step where you would like the contact-rich part to begin (`MP_end_step`) and end (`subtask_term_step`).
 <video width="640" controls>
   <source src="/MoMaGen/assets/momagen_annotation_example.mp4" type="video/mp4">
   Your browser does not support the video tag.
@@ -222,13 +221,17 @@ python momagen/scripts/prepare_src_dataset.py --dataset momagen/datasets/source_
 python momagen/scripts/generate_configs.py
 ```
 10. Create a new class for the new task in `momagen/configs/omnigibson.py` 
-11. Run data generation:
+seed $WORKER_ID
+```
+
+## Step 5: Run Data Genration
+
 Specify the task and parameters, remember to set your own data path:
 
 ```bash
 # Set the task name (choose from available tasks above)
-TASK=pick_cup  # Options: pick_cup, tidy_table, dishes_away, clean_pan
-DR=0
+TASK=picking_up_trash # your custom task name
+DR=0 # can be {0, 1, 2}
 NUM_DEMOS=1
 WORKER_ID=0
 FOLDER=/path/to/data # SPECIFY YOUR OWN PATH HERE
@@ -242,8 +245,5 @@ python momagen/scripts/generate_dataset.py \
     --num_demos $NUM_DEMOS \
     --bimanual \
     --folder $FOLDER/$TASK/r1_$TASK\_worker_$WORKER_ID \
-    --seed $WORKER_ID
-```
-
-## Step 5: Define MoMaGen Task Configuration
+    --
 

@@ -3,6 +3,8 @@
 
 ![momagen_teaser](https://github.com/user-attachments/assets/278f7c1c-1d73-47c0-942c-e70115875eb4)
 
+This is the official codebase of MoMaGen, an automated data generation method for multi-step bimanual mobile manipulation tasks. Please refer to the following resources:
+
 [**[Documentation]**](https://chengshuli.github.io/MoMaGen/) &ensp; [**[Website]**]() &ensp; [**[Paper]**]() 
 
 <!-- ## 🛠️ Installation
