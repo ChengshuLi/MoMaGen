@@ -667,7 +667,11 @@ TASK_CONFIGS = {
     ),
 
     "r1_picking_up_trash": TaskConfig(
-        name="r1_picking_up_trash"
+        name="r1_picking_up_trash",
+        tracked_objects={
+            "can_of_soda_261": "can_of_soda_261",
+            "trash_can_262": "trash_can_262",
+        },
     ),
 
     # ------------------------------------------------------------------------------------------------
@@ -675,6 +679,7 @@ TASK_CONFIGS = {
     # Note 1: tracked_objects is a dictionary with the same key and value. Furthermore, the tracked_object is the
     # OG specific name of the object which you can find by clicking on the object on the GUI
     # Note 2: we are currently not using the termination_signals for the data generation, so you can leave it empty
+    # ------------------------------------------------------------------------------------------------
    
 }
 
@@ -711,40 +716,13 @@ class MG_R1BringingWater(OmniGibsonInterfaceBimanual):
     def __init__(self, env):
         super().__init__(env, TASK_CONFIGS["r1_bringing_water"])
 
+# ---------------------------------
+# Add new class here for new tasks
+# ---------------------------------
+
 class MG_R1PickingUpTrash(OmniGibsonInterfaceBimanual):
     def __init__(self, env):
         super().__init__(env, TASK_CONFIGS["r1_picking_up_trash"])
 
-# ------------------------------------------------------------------------------------------------
-# Add new class here for new tasks
-
-
-
-# TODO: check if this is needed
-# def create_interface(env, task_name: str, bimanual: bool = None):
-#     """
-#     Factory function to create appropriate interface for a task.
-
-#     Args:
-#         env: OmniGibson environment
-#         task_name: Name of the task (must be in TASK_CONFIGS)
-#         bimanual: Whether to use bimanual interface (auto-detected if None)
-
-#     Returns:
-#         Configured interface instance
-#     """
-#     if task_name not in TASK_CONFIGS:
-#         raise ValueError(f"Unknown task: {task_name}. Available: {list(TASK_CONFIGS.keys())}")
-
-#     task_config = TASK_CONFIGS[task_name]
-
-#     # Auto-detect bimanual if not specified
-#     if bimanual is None:
-#         bimanual = task_config.bimanual
-
-#     if bimanual:
-#         return OmniGibsonInterfaceBimanual(env, task_config)
-#     else:
-#         return OmniGibsonInterface(env, task_config)
 
 

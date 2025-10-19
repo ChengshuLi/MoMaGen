@@ -17,7 +17,7 @@ from momagen.utils.file_utils import config_generator_to_script_lines
 
 
 # set path to folder containing src datasets
-SRC_DATA_DIR = os.path.join(momagen.__path__[0], "./datasets/source_og")
+SRC_DATA_DIR = os.path.join(momagen.__path__[0], "./datasets/processed_source_demos")
 
 # set base folder for where to copy each base config and generate new config files for data generation
 # CONFIG_DIR = "/tmp/core_configs_og"
@@ -44,7 +44,7 @@ CAMERA_SIZE = (84, 84)
 TASK_NAMES_WITH_BASELINES = ["pick_cup", "tidy_table", "dishes_away", "clean_pan"]
 
 # task names that only have momagen configuration
-TASK_NAMES_MOMAGEN_ONLY = ["bringing_water"]
+TASK_NAMES_MOMAGEN_ONLY = ["bringing_water", "picking_up_trash"]
 
 BASE_BASE_CONFIG_PATH = os.path.join(momagen.__path__[0], "./datasets/base_configs")
 BASE_CONFIGS = [
@@ -62,7 +62,7 @@ BASE_CONFIGS = [
     os.path.join(BASE_BASE_CONFIG_PATH, "r1_clean_pan_skillgen.json"),
     os.path.join(BASE_BASE_CONFIG_PATH, "r1_bringing_water.json"),
     # Add new base configs here
-    
+    os.path.join(BASE_BASE_CONFIG_PATH, "r1_picking_up_trash.json"),
 ]
 
 def make_generators(base_configs):
