@@ -54,7 +54,7 @@ from omnigibson.objects.primitive_object import PrimitiveObject
 # Disable pyembree for trimesh
 os.environ["TRIMESH_NO_PYEMBREE"] = "1"
 
-ROBOT_TYPE = "R1"
+ROBOT_TYPE = "Tiago"
 
 def visualize_base_poses(env):
     """Visualize base poses with colored markers (debug function)."""
@@ -317,12 +317,9 @@ def generate_dataset(
         use_image_obs=use_image_obs,
         use_depth_obs=use_depth_obs,
         manipulation_only=False,
-        real_robot_mode="pick_cup" in mg_config.experiment.task.name,
+        real_robot_mode=False,
         baseline=baseline,
     )
-    print("\n==== Real robot mode ====")
-    print("pick_cup" in mg_config.experiment.task.name)
-
     print("\n==== Using environment with the following metadata ====")
     print(json.dumps(env.serialize(), indent=4))
     print("")
