@@ -54,8 +54,6 @@ from omnigibson.objects.primitive_object import PrimitiveObject
 # Disable pyembree for trimesh
 os.environ["TRIMESH_NO_PYEMBREE"] = "1"
 
-ROBOT_TYPE = "Tiago"
-
 def visualize_base_poses(env):
     """Visualize base poses with colored markers (debug function)."""
     sampled_base_poses = env.sampled_base_poses
@@ -157,6 +155,7 @@ def generate_dataset(
     no_partial_tasks=False,
     headless=False,
     baseline=None,
+    robot_type="R1",
 ):
     """
     Main function to collect a new dataset with MoMaGen.
@@ -213,7 +212,7 @@ def generate_dataset(
     # get environment metadata from dataset
     env_meta = get_env_metadata_from_dataset(dataset_path=source_dataset_path)
     
-    if ROBOT_TYPE == "Tiago":
+    if robot_type == "Tiago":
         env_meta = configure_tiago_env_meta(env_meta)
 
     # set seed for generation
@@ -762,6 +761,7 @@ def main(args):
             no_partial_tasks=args.no_partial_tasks,
             headless=args.headless,
             baseline=args.baseline,
+            robot_type=args.robot_type,
         )
     except Exception as e:
         res_str = "run failed with error:\n{}\n\n{}".format(e, traceback.format_exc())
@@ -879,6 +879,12 @@ if __name__ == "__main__":
         type=str,
         help="baseline to run. Options: mimicgen or skillgen",
         default=None,
+    )
+    parser.add_argument(
+        "--robot_type",
+        type=str,
+        help="robot type to use for data generation. Options: R1 or Tiago",
+        default="R1",
     )
 
     args = parser.parse_args()
