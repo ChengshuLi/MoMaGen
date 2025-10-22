@@ -199,10 +199,10 @@ In this step, you will **annotate the source demonstration** and **generate the 
 
 Concretely, you need to **create a new json file** in `MoMaGen/momagen/datasets/base_configs`. You can start by **copying the contents of an existing JSON file** from the `base_configs` folder and then **modify it to suit your new task**. Note that **only the manipulation phases need to be annotated**.
 
-### 1. Set Basic Fields
+#### 1. Set Basic Fields
 - Modify the `name` field to your task name 
 - set `filter_key` to null (unless you have multiple episodes in your hdf5 file and would like to specify which episode to use for data generation)
-2. **Define the phases of your task** 
+#### 2. Define the phases of your task** 
 A phase represents a semantic step in a multi-step, long-horizon task. For instance, a phase could be picking a cup, putting an apple in a bowl, pouring water in a mug, opening a drawer. 
 3. **Specify the phase type** 
 For each phase, mention the "type" of the phase. This can be either `uncoordinated` or `coordinated`.
