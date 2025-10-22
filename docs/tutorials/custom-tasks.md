@@ -199,12 +199,13 @@ In this step, you will **annotate the source demonstration** and **generate the 
 
 Concretely, you need to **create a new json file** in `MoMaGen/momagen/datasets/base_configs`. You can start by **copying the contents of an existing JSON file** from the `base_configs` folder and then **modify it to suit your new task**. Note that **only the manipulation phases need to be annotated**.
 
-1. **Set up basic metadata** 
-* Modify the `name` field to your task name 
-* set `filter_key` to null (unless you have multiple episodes in your hdf5 file and would like to specify which episode to use for data generation)
+### 1. Set Basic Fields
+- Modify the `name` field to your task name 
+- set `filter_key` to null (unless you have multiple episodes in your hdf5 file and would like to specify which episode to use for data generation)
 2. **Define the phases of your task** 
 A phase represents a semantic step in a multi-step, long-horizon task. For instance, a phase could be picking a cup, putting an apple in a bowl, pouring water in a mug, opening a drawer. 
-3. For each phase, mention the "type" of the phase. This can be either `uncoordinated` or `coordinated`.
+3. **Specify the phase type** 
+For each phase, mention the "type" of the phase. This can be either `uncoordinated` or `coordinated`.
 4. Next we will define the subtasks for each phase and for each arm (left and right arm). You can think of a subtask as the part of a phase that can be broken down into a free-space motion part and a contact-rich part. For instance, for opening a drawer, the free-space motion would involve the robot gripper moving from its starting pose to a pose close to the grasp pose and the contact-rich part would involve grasping the handle and the subsequent motion to open the drawer.
 Note that in all the MoMaGen tasks, we have 1 subtask for each phase. You can also have multiple subtasks for each phase if you would like. The only thing you need to ensure for a subtask is that it has atmost one free-space and atmost one contact-rich part. 
 5. For each subtask, mention the `object_ref` and the `attached_obj` for each arm. `object_ref` is the reference object for this arm and `attached_obj` is the object that the gripper is holding (if any). 
