@@ -145,7 +145,9 @@ BEHAVIOR-1K/datasets/2025-challenge-task-instances/scenes/house_double_floor_low
 To collect source demonstrations, you can use one of the following input devices:
 
 * **JoyLo** (used for MoMaGen source demos and the BEHAVIOR Challenge dataset)
-* **SpaceMouse**
+* **keyboard**
+* **spacemouse**
+* **VR**
 
 ---
 
@@ -181,6 +183,13 @@ python joylo/experiments/run_joylo.py \
   --gello_model r1 \
   --joint_config_file joint_config_{YOUR_GELLO_SET_NAME}.yaml
 ```
+
+### Using Other Devices
+The other teleop devices (such as keyboard, spacemouse and VR) are interfaced using [telemoma](https://robin-lab.cs.utexas.edu/telemoma-web/). Run 
+```bash
+python BEHAVIOR-1K/OmniGibson/omnigibson/examples/teleoperation/robot_teleoperate_demo.py
+```
+amd refer to this file for futher details.
 
 #### 3. Saving the Recording
 
