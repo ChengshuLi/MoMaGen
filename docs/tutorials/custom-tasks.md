@@ -193,7 +193,7 @@ Once you finish collecting your source demonstration:
 ---
 
 
-## Step 4: Annotate Source Demonstrations 
+## Step 4: Process Source Demonstrations 
 
 In this step, you will **annotate the source demonstration** and **generate the configuration files** that contain the information required for MoMaGen data generation. 
 
@@ -215,11 +215,13 @@ For each phase, specify its `type`. This can be either `uncoordinated` or `coord
 Next, define the **subtasks** for each phase and for each arm (left and right).
 
 A subtask represents the portion of a phase that can be broken down into:
-* A **free-space motion** part, and  
+
+* A **free-space motion** part, and
 * A **contact-rich** part.
 
 **Example:**
 For the *open drawer* task:
+
 * The free-space motion involves moving the gripper from its starting pose to near the handle.
 * The contact-rich part involves grasping the handle and performing the motion to open the drawer.
 
@@ -230,18 +232,21 @@ Each subtask must contain **at most one free-space** and **at most one contact-r
 
 #### 5. Specify Object References
 For each arm in a subtask, specify:
+
 * `object_ref`: The reference object for this arm.  
 * `attached_obj`: The object the gripper is holding (if any).
 
 
 #### 6. Add Task Interface and Config Entries
 Create an environment interface class and task configuration for your new custom task in `momagen/env_interfaces/omnigibson.py`:
+
 * Search for "Add new class here for new tasks" to add your **env_interface class**.
 * Search for "Add new task configs here" to add your **task_config**.
 
 
 #### 7. Annotate Subtask Boundaries
 For each subtask, specify the following:
+
 * `MP_end_step`: The simulation step where you want the motion planning to end and "replay" to begin.
 * `subtask_term_step`: The simulation step where the subtask ends.
 
