@@ -202,48 +202,81 @@ Concretely, you need to **create a new json file** in `MoMaGen/momagen/datasets/
 #### 1. Set Basic Fields
 Modify the `name` to your task name and set `filter_key` to `null` (unless you have multiple episodes in your HDF5 file and would like to specify which episode to use for data generation).
 
+
 #### 2. Define Task Phases
 A phase represents a semantic step in a multi-step, long-horizon task. For instance, a phase could be picking a cup, putting an apple in a bowl, pouring water in a mug, opening a drawer.
 
+
 #### 3. Specify Phase Type
 For each phase, specify its `type`. This can be either `uncoordinated` or `coordinated`.
+
 
 #### 4. Define Subtasks for Each Phase
 Next, define the **subtasks** for each phase and for each arm (left and right).
 
 A subtask represents the portion of a phase that can be broken down into:
-- A **free-space motion** part, and  
-- A **contact-rich** part.
+* A **free-space motion** part, and  
+* A **contact-rich** part.
 
 **Example:**
 For the *open drawer* task:
-- The free-space motion involves moving the gripper from its starting pose to near the handle.
-- The contact-rich part involves grasping the handle and performing the motion to open the drawer.
+* The free-space motion involves moving the gripper from its starting pose to near the handle.
+* The contact-rich part involves grasping the handle and performing the motion to open the drawer.
 
-In all existing MoMaGen tasks, each phase typically has **one subtask**.  
+In all existing MoMaGen tasks, each phase typically has one subtask.  
 You may define multiple subtasks if desired.  
 Each subtask must contain **at most one free-space** and **at most one contact-rich** segment.
 
-5. For each subtask, mention the `object_ref` and the `attached_obj` for each arm. `object_ref` is the reference object for this arm and `attached_obj` is the object that the gripper is holding (if any). 
-6. Create env_interface class (search `Add new class here for new tasks`) and task_config (search `Add new task configs here`) for the new custom task in `momagen/env_interfaces/omnigibson.py`
-7. Now comes the heavylifting, for each subtask, we need to mention the `MP_end_step` and `subtask_term_step`. The simulation step from `MP_end_step` to the `subtask_end_step` is considered the contact-rich part of the subtask and will be "replayed". To obtain these values, you can replay the source demonstration using
+
+#### 5. Specify Object References
+For each arm in a subtask, specify:
+* `object_ref`: The reference object for this arm.  
+* `attached_obj`: The object the gripper is holding (if any).
+
+
+#### 6. Add Task Interface and Config Entries
+Create an environment interface class and task configuration for your new custom task in `momagen/env_interfaces/omnigibson.py`:
+* Search for "Add new class here for new tasks" to add your **env_interface class**.
+* Search for "Add new task configs here" to add your **task_config**.
+
+
+#### 7. Annotate Subtask Boundaries
+For each subtask, specify the following:
+* `MP_end_step`: The simulation step where you want the motion planning to end and "replay" to begin.
+* `subtask_term_step`: The simulation step where the subtask ends.
+
+The simulation interval between `MP_end_step` and `subtask_term_step` is considered the contact-rich segment and will be replayed.
+
+To obtain these values, replay the source demonstration using the following command:
+
 ```bash
 python momagen/scripts/prepare_src_dataset.py --dataset momagen/datasets/source_og/{hdf5_name} --env_interface {env_interface e.g. MG_R1PickCup} --env_interface_type omnigibson_bimanual --replay_for_annotation 
 ```
-and note down the simulation step where you would like the contact-rich part to begin (`MP_end_step`) and end (`subtask_term_step`).
-    <video width="640" controls>
-        <source src="/MoMaGen/assets/momagen_annotation_example.mp4" type="video/mp4">
-        Your browser does not support the video tag.
-    </video>
-8. Now, we can generate the hdf5 with the `datagen_info` key which is used in the MoMaGen data generation pipeline.
+
+Note down the simulation step where you would like the contact-rich part to begin (`MP_end_step`) and end (`subtask_term_step`). Here is an example of this process:
+<video width="640" controls>
+    <source src="/MoMaGen/assets/momagen_annotation_example.mp4" type="video/mp4">
+    Your browser does not support the video tag.
+</video>
+
+
+#### 8. Generate Processed HDF5 File
+Now, generate the HDF5 file containing the `datagen_info` key used in the MoMaGen data generation pipeline:
 ```bash
 python momagen/scripts/prepare_src_dataset.py --dataset momagen/datasets/source_og/{hdf5_name} --env_interface {env_interface e.g. MG_R1PickCup} --env_interface_type omnigibson_bimanual --generate_processed_hdf5
 ```
-9. Add your base config json to `BASE_CONFIGS` and task name to `TASK_NAMES_MOMAGEN_ONLY` in `momagen/scripts/generate_configs.py` and run
+
+#### 9. Register Base Config and Task
+Add your base config JSON to `BASE_CONFIGS` and your task name to `TASK_NAMES_MOMAGEN_ONLY` in `momagen/scripts/generate_configs.py`.
+Then run
 ```bash
 python momagen/scripts/generate_configs.py
 ```
-10. Create a new class for the new task in `momagen/configs/omnigibson.py` 
+
+#### 10. Create Task Class
+Finally, create a new class for your task in `momagen/configs/omnigibson.py`.
+
+
 
 ## Step 5: Run Data Genration
 
