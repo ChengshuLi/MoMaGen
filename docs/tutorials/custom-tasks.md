@@ -195,7 +195,9 @@ Once you finish collecting your source demonstration:
 
 ## Step 4: Annotate Source Demonstrations 
 
-This step creates the base MoMaGen task config. Concretely, you need to create a new json file in `MoMaGen/momagen/datasets/base_configs`. You can begin by copying the contents of one of the existing json files in the base_configs folder. Now we will modify this file to cater to this new task. Note that we only need to annotate the manipulation phases. 
+In this step, you will **annotate the source demonstration** and **generate the configuration files** that contain the information required for MoMaGen data generation. 
+
+Concretely, you need to **create a new json file** in `MoMaGen/momagen/datasets/base_configs`. You can start by **copying the contents of an existing JSON file** from the `base_configs` folder. Next, **modify this file** to adapt it for the new task. Note that **only the manipulation phases need to be annotated**.
 
 1. Modify the `name` to your task name and set `filter_key` to null (unless you have multiple episodes in your hdf5 file and would like to specify which episode to use for data generation)
 2. We will first define the phases in our task. You can think of a phase as a semantic step in a multi-step long-horizon task. For instance, a phase could be picking a cup, putting an apple in a bowl, pouring water in a mug, opening a drawer. 
