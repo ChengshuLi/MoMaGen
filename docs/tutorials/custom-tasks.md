@@ -292,7 +292,7 @@ Finally, create a new class for your task in `momagen/configs/omnigibson.py`.
 
 
 
-## Step 5: Run Data Genration
+## Step 5: Run Data Generation
 
 Specify the task and parameters, remember to set your own data path:
 
