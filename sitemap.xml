@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+    <url>
+         <loc>https://momagen.github.io/doc/</loc>
+         <lastmod>2025-10-25</lastmod>
+    </url>
+    <url>
+         <loc>https://momagen.github.io/doc/installation/</loc>
+         <lastmod>2025-10-25</lastmod>
+    </url>
+    <url>
+         <loc>https://momagen.github.io/doc/tutorials/custom-tasks/</loc>
+         <lastmod>2025-10-25</lastmod>
+    </url>
+    <url>
+         <loc>https://momagen.github.io/doc/tutorials/generating-data/</loc>
+         <lastmod>2025-10-25</lastmod>
+    </url>
+</urlset>
