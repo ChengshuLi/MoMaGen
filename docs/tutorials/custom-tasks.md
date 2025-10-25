@@ -297,7 +297,6 @@ Finally, create a new class for your task in `momagen/configs/omnigibson.py`.
 Specify the task and parameters, remember to set your own data path:
 
 ```bash
-# Set the task name (choose from available tasks above)
 TASK=picking_up_trash # your custom task name
 DR=0 # can be {0, 1, 2}
 NUM_DEMOS=1
